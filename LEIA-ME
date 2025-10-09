@@ -1,0 +1,16 @@
+banco de dados mysql:
+  /docs/Banco.sql
+
+dependencias:
+  pip install flask mysql-connector-python bcrypt pyjwt
+
+run: 
+  python app.py
+
+
+instalador:
+  é possivel rodar o instalador que baixa as bibliotecas, conecta ao banco de dados e cria o banco.
+  execute:
+    python install.py
+    python app.py
+  
