@@ -1,4 +1,6 @@
 from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
+
 from werkzeug.exceptions import HTTPException, NotFound
 
 from api.database.mysql_database import MysqlDatabase
@@ -42,6 +44,11 @@ class Server:
 
         # 🔹 Instância Flask, configurando pasta de arquivos estáticos
         self.__app = Flask(__name__, static_folder="static", static_url_path="")
+
+        # 🔹 Configuração de CORS (Cross-Origin Resource Sharing)
+        #    Permite que clientes de outros domínios/portas acessem sua API
+        #    Exemplo: permitir todos os domínios (somente para desenvolvimento)
+        CORS(self.__app, resources={r"/*": {"origins": "*"}})
 
         # 🔹 Middlewares
         self.__jwt_middleware = JwtMiddleware()
