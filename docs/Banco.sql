@@ -1,53 +1,49 @@
+create database projeto;
+use projeto;
+-- Tabela de Usuários
+CREATE TABLE usuarios (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    senha_hash VARCHAR(255) NOT NULL,
+    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- Remove o schema se existir
-DROP SCHEMA IF EXISTS `gestao_rh`;
+-- Tabela de Projetos
+CREATE TABLE projetos (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    data_inicio DATE,
+    status VARCHAR(50) DEFAULT 'Pendente',
+    usuario_id INT NOT NULL,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
 
--- Cria o schema novamente
-CREATE SCHEMA IF NOT EXISTS `gestao_rh` DEFAULT CHARACTER SET utf8;
-USE `gestao_rh`;
-
--- Remove tabelas caso existam (ordem importa por causa da FK)
-DROP TABLE IF EXISTS `Funcionario`;
-DROP TABLE IF EXISTS `Cargo`;
-
--- Criação da tabela Cargo
-CREATE TABLE IF NOT EXISTS `Cargo` (
-  `idCargo` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `nomeCargo` VARCHAR(64) NOT NULL,
-  PRIMARY KEY (`idCargo`),
-  UNIQUE INDEX `idCargo_UNIQUE` (`idCargo` ASC),
-  UNIQUE INDEX `nomeCargo_UNIQUE` (`nomeCargo` ASC)
-) ENGINE = InnoDB;
-
--- Criação da tabela Funcionario
-CREATE TABLE IF NOT EXISTS `Funcionario` (
-  `idFuncionario` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `nomeFuncionario` VARCHAR(128) NULL,
-  `email` VARCHAR(64) NULL,
-  `senha` VARCHAR(64) NULL,
-  `recebeValeTransporte` TINYINT(1) NULL,
-  `Cargo_idCargo` INT UNSIGNED NOT NULL,
-  PRIMARY KEY (`idFuncionario`),
-  UNIQUE INDEX `idFuncionario_UNIQUE` (`idFuncionario` ASC),
-  UNIQUE INDEX `email_UNIQUE` (`email` ASC),
-  INDEX `fk_Funcionario_Cargo_idx` (`Cargo_idCargo` ASC),
-  CONSTRAINT `fk_Funcionario_Cargo`
-    FOREIGN KEY (`Cargo_idCargo`)
-    REFERENCES `Cargo` (`idCargo`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION
-) ENGINE = InnoDB;
-
--- Inserção de cargos
-INSERT INTO `Cargo` (`idCargo`, `nomeCargo`) VALUES (1, 'Administrador');
-INSERT INTO `Cargo` (`idCargo`, `nomeCargo`) VALUES (2, 'Técnico em Informática Jr');
-INSERT INTO `Cargo` (`idCargo`, `nomeCargo`) VALUES (3, 'Técnico em Informática Pleno');
-INSERT INTO `Cargo` (`idCargo`, `nomeCargo`) VALUES (4, 'Analista de Sistemas Jr');
-
--- Inserção de funcionários
-INSERT INTO `Funcionario` (`nomeFuncionario`, `email`, `senha`, `recebeValeTransporte`, `Cargo_idCargo`) 
-VALUES 
-('adm', 'adm@adm.com', '$2b$12$6ixafy0UKZx.A8ujEEDfnO2QH7IonQ/5/5UCqzQ51YvISdSO4VVle', 1, 1),
-('adm1', 'adm1@adm.com', '$2b$12$6ixafy0UKZx.A8ujEEDfnO2QH7IonQ/5/5UCqzQ51YvISdSO4VVle', 1, 1),
-('Hélio', 'helioesperidiao@gmail.com', '$2b$12$6ixafy0UKZx.A8ujEEDfnO2QH7IonQ/5/5UCqzQ51YvISdSO4VVle', 1, 1);
-
+-- Tabela de Tarefas
+CREATE TABLE tarefas (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    titulo VARCHAR(255) NOT NULL,
+    concluida BOOLEAN DEFAULT FALSE,
+    data_limite DATE,
+    projeto_id INT NOT NULL,
+    FOREIGN KEY (projeto_id) REFERENCES projetos(id) ON DELETE CASCADE
+);
+INSERT INTO usuarios (nome, email, senha_hash) VALUES
+('Ana Silva', 'ana.silva@email.com', 'hash_da_senha_da_ana'), -- ID será 1
+('Bruno Costa', 'bruno.costa@email.com', 'hash_da_senha_do_bruno'); -- ID será 2
+INSERT INTO projetos (nome, descricao, data_inicio, status, usuario_id) VALUES
+('API de E-commerce', 'Desenvolver a API REST para a nova loja virtual.', '2025-11-01', 'Em Andamento', 1),
+('Website Institucional', 'Criar o novo site da empresa com um blog integrado.', '2025-10-20', 'Concluído', 1);
+INSERT INTO projetos (nome, descricao, data_inicio, status, usuario_id) VALUES
+('Aplicativo Mobile de Fitness', 'App para iOS e Android para monitoramento de treinos.', '2026-01-15', 'Pendente', 2);
+INSERT INTO tarefas (titulo, concluida, data_limite, projeto_id) VALUES
+('Definir endpoints de produtos', TRUE, '2025-11-05', 1),
+('Implementar autenticação JWT', FALSE, '2025-11-10', 1),
+('Criar CRUD de clientes', FALSE, '2025-11-15', 1);
+INSERT INTO tarefas (titulo, concluida, projeto_id) VALUES
+('Criar layout da home page', TRUE, 2),
+('Desenvolver página de contato', TRUE, 2);
+INSERT INTO tarefas (titulo, concluida, data_limite, projeto_id) VALUES
+('Desenhar telas no Figma', FALSE, '2026-01-30', 3),
+('Configurar ambiente de desenvolvimento React Native', FALSE, '2026-02-05', 3);
