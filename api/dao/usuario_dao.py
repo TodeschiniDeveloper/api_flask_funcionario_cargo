@@ -146,27 +146,41 @@ class UsuarioDAO:
             rows = self.__database.execute_query(SQL, (objUsuario.email,), fetch=True)
 
             if len(rows) != 1:
-                print("Usuário não encontrado")
+                print("❌ Usuário não encontrado")
                 return None
 
             usuarioDB = rows[0]
-
-            if not bcrypt.checkpw(
-                objUsuario.senha_hash.encode("utf-8"),
-                usuarioDB["senha_hash"].encode("utf-8")
-            ):
-                print("Senha inválida")
+            
+            # ✅ CORREÇÃO: Verificação robusta do bcrypt
+            senha_bytes = objUsuario.senha_hash.encode("utf-8")
+            
+            # Pega o hash do banco - pode ser string ou bytes
+            hash_do_banco = usuarioDB["senha_hash"]
+            
+            # Converte para bytes se for string
+            if isinstance(hash_do_banco, str):
+                hash_bytes = hash_do_banco.encode("utf-8")
+            else:
+                hash_bytes = hash_do_banco
+            
+            print(f"🔐 Verificando senha para: {objUsuario.email}")
+            
+            # Verifica a senha
+            if not bcrypt.checkpw(senha_bytes, hash_bytes):
+                print("❌ Senha inválida")
                 return None
 
+            # Cria objeto usuário com dados do banco
             usuario = Usuario()
             usuario.id = usuarioDB["id"]
             usuario.nome = usuarioDB["nome"]
             usuario.email = usuarioDB["email"]
             usuario.senha_hash = usuarioDB["senha_hash"]
 
-            print("✅ UsuarioDAO.login() -> sucesso")
+            print(f"✅ Login bem-sucedido para: {usuario.email}")
             return usuario
             
         except Exception as e:
             print(f"❌ Erro em UsuarioDAO.login(): {e}")
+            print(f"🔍 Detalhes do erro: {str(e)}")
             raise

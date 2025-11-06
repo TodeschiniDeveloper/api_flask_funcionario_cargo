@@ -1,27 +1,30 @@
 from server import Server
+from datetime import datetime
+
 """
 Arquivo principal de inicialização do servidor Flask.
-
-Responsabilidades:
-- Cria a instância do servidor
-- Inicializa todas as dependências (banco, middlewares, rotas)
-- Inicia o servidor na porta especificada
 """
+
 def main():
     try:
         print("🚀 Iniciando servidor Flask...")
+        print(f"⏰ {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
         
-        # Cria instância do servidor na porta 8080
-        server = Server(porta=5000)  # Mudei para 5000 (padrão Flask)
+        # Cria instância do servidor
+        server = Server(porta=5000)  # CORRIGIDO: apenas 5000
 
-        # Inicializa servidor (DB, middlewares, roteadores)
+        # Inicializa servidor
         server.init()
 
         # Inicia servidor Flask
         server.run()
 
     except Exception as error:
-        print("❌ Erro ao iniciar o servidor:", error)
+        print(f"❌ Erro ao iniciar o servidor: {error}")
+        print("💡 Possíveis soluções:")
+        print("   - Verifique se o MySQL está rodando no XAMPP")
+        print("   - Confirme se a porta 5000 está livre")
+        print("   - Verifique as credenciais do banco de dados")
         import traceback
         traceback.print_exc()
 

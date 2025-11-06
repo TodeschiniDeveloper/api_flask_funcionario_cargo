@@ -33,10 +33,13 @@ class UsuarioService:
         """
         print("🟣 UsuarioService.createUsuario()")
 
+        # ✅ CORREÇÃO: Extrai do objeto "usuario" se existir
+        usuario_data = jsonUsuario.get("usuario", jsonUsuario)
+        
         objUsuario = Usuario()
-        objUsuario.nome = jsonUsuario["nome"]
-        objUsuario.email = jsonUsuario["email"]
-        objUsuario.senha_hash = jsonUsuario["senha_hash"]
+        objUsuario.nome = usuario_data["nome"]
+        objUsuario.email = usuario_data["email"]
+        objUsuario.senha_hash = usuario_data["senha_hash"]
 
         # regra de negócio: validar email duplicado
         emailExiste = self.__usuarioDAO.findByField("email", objUsuario.email)
@@ -47,26 +50,34 @@ class UsuarioService:
                 {"message": f"O email {objUsuario.email} já está cadastrado"}
             )
 
-        return self.__usuarioDAO.create(objUsuario)
+        user_id = self.__usuarioDAO.create(objUsuario)
+        print(f"✅ Usuário criado com ID: {user_id}")
+        return user_id
 
     def loginUsuario(self, jsonUsuario: dict) -> dict:
         """
         Realiza login de um usuário e retorna token JWT.
 
-        :param jsonUsuario: dict {"email", "senha_hash"}
+        :param jsonUsuario: dict {"email", "senha_hash"} dentro de "usuario"
         :return: dict {user, token}
         :raises ErrorResponse: se login falhar
         """
         print("🟣 UsuarioService.loginUsuario()")
-        print(jsonUsuario)
+        print(f"📨 Dados recebidos para login: {jsonUsuario}")
 
+        # ✅ CORREÇÃO: Extrai do objeto "usuario" com fallback
+        usuario_data = jsonUsuario.get("usuario", jsonUsuario)
+        
         objUsuario = Usuario()
-        objUsuario.email = jsonUsuario["email"]
-        objUsuario.senha_hash = jsonUsuario["senha_hash"]
+        objUsuario.email = usuario_data["email"]
+        objUsuario.senha_hash = usuario_data["senha_hash"]
+        
+        print(f"🔐 Tentando login para: {objUsuario.email}")
       
         encontrado = self.__usuarioDAO.login(objUsuario)
 
         if not encontrado:
+            print("❌ Login falhou - usuário não encontrado ou senha incorreta")
             raise ErrorResponse(
                 401,
                 "Usuário ou senha inválidos",
@@ -77,11 +88,19 @@ class UsuarioService:
         user = {
             "usuario": {
                 "email": encontrado.email,
-                "name": encontrado.nome,
+                "nome": encontrado.nome,  # ✅ CORREÇÃO: era "name", mudado para "nome"
                 "id": encontrado.id
             }
         }
-        return {"user": user, "token": jwt.gerarToken(user["usuario"])}
+        token = jwt.gerarToken(user["usuario"])
+        
+        print(f"✅ Login bem-sucedido para: {encontrado.email}")
+        print(f"🔑 Token gerado: {token[:50]}...")
+        
+        return {
+            "user": user, 
+            "token": token
+        }
 
     def findAll(self) -> list[dict]:
         """

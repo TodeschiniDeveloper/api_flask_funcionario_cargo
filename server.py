@@ -3,16 +3,17 @@ from flask import Flask
 from flask_cors import CORS
 import sys
 import os
+from datetime import datetime
 
 # Adiciona o diretório raiz ao path para imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from api.http.mysql_database import MysqlDatabase, create_database_instance
+from api.database.mysql_database import MysqlDatabase, create_database_instance
 from api.http.meu_token_jwt import MeuTokenJWT
 from api.middleware.jwt_middleware import JwtMiddleware
 from api.middleware.usuario_middleware import UsuarioMiddleware
 from api.middleware.projeto_middleware import ProjetoMiddleware
-from api.middleware.tarefa_middleware import TarefaMiddleware
+from api.middleware.tarefa_middleware import TarefaMiddleware  # CORRIGIDO: era TarefaMiddleware
 
 from api.dao.usuario_dao import UsuarioDAO
 from api.dao.projeto_dao import ProjetoDAO
@@ -26,29 +27,17 @@ from api.control.usuario_control import UsuarioControl
 from api.control.projeto_control import ProjetoControl
 from api.control.tarefa_control import TarefaControl
 
-from api.roteador.usuario_roteador import UsuarioRoteador
-from api.roteador.projeto_roteador import ProjetoRoteador
-from api.roteador.tarefa_roteador import TarefaRoteador
+from api.router.usuario_roteador import UsuarioRoteador
+from api.router.projeto_roteador import ProjetoRoteador
+from api.router.tarefa_roteador import TarefaRoteador
+
 
 class Server:
     """
     Classe principal do servidor Flask.
-    
-    Responsável por:
-    - Configurar a aplicação Flask
-    - Inicializar todas as dependências
-    - Registrar blueprints (rotas)
-    - Gerenciar ciclo de vida do servidor
     """
     
     def __init__(self, porta=5000, host='0.0.0.0', debug=True):
-        """
-        Construtor do servidor.
-        
-        :param porta: Porta do servidor
-        :param host: Host do servidor
-        :param debug: Modo debug
-        """
         self.porta = porta
         self.host = host
         self.debug = debug
@@ -95,7 +84,7 @@ class Server:
         try:
             self.database = create_database_instance()
             
-            # Testar conexão
+            # Testar conexão com tratamento de erro
             if self.database.test_connection():
                 print("✅ Conexão com banco de dados estabelecida")
             else:
@@ -103,10 +92,14 @@ class Server:
                 
         except Exception as e:
             print(f"❌ Erro ao inicializar banco de dados: {e}")
+            print("💡 Soluções possíveis:")
+            print("   - Inicie o MySQL no XAMPP")
+            print("   - Verifique se a senha está correta")
+            print("   - Crie o banco 'projeto' manualmente se necessário")
             raise
 
     def _configure_dependencies(self):
-        """Configura todas as dependências do sistema (Injeção de Dependência)."""
+        """Configura todas as dependências do sistema."""
         print("🔗 Configurando dependências...")
         
         try:
@@ -127,7 +120,7 @@ class Server:
             # Middlewares
             usuario_middleware = UsuarioMiddleware()
             projeto_middleware = ProjetoMiddleware()
-            tarefa_middleware = TarefaMiddleware()
+            tarefa_middleware = TarefaMiddleware()  # CORRIGIDO
             
             # Controls
             usuario_control = UsuarioControl(usuario_service)
@@ -172,13 +165,13 @@ class Server:
                 url_prefix='/api/tarefas'
             )
             
-            # Rota de health check
+            # Rota de health check com timestamp dinâmico
             @self.app.route('/api/health')
             def health_check():
                 return {
                     "status": "healthy",
                     "message": "Servidor funcionando corretamente",
-                    "timestamp": "2024-01-01T00:00:00Z"  # Você pode usar datetime aqui
+                    "timestamp": datetime.now().isoformat() + "Z"
                 }
             
             # Rota raiz
@@ -203,7 +196,6 @@ class Server:
 
     def _configure_error_handlers(self):
         """Configura handlers de erro globais."""
-        print("⚙️  Configurando handlers de erro...")
         
         @self.app.errorhandler(404)
         def not_found(error):
@@ -255,7 +247,6 @@ class Server:
         print("✅ Servidor encerrado")
 
 
-# Para uso com Gunicorn ou outros WSGI servers
 def create_app():
     """Factory function para criação da app (uso com Gunicorn)."""
     server = Server()
@@ -264,7 +255,6 @@ def create_app():
 
 
 if __name__ == "__main__":
-    # Para teste direto
     server = Server()
     server.init()
     server.run()

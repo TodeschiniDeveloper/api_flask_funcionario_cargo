@@ -225,8 +225,8 @@
 
                 console.log("Enviando requisição de login...", dadosLogin);
 
-                // Fazer requisição para a API
-                const resposta = await api.post("/api/usuarios/login", dadosLogin);
+                // ✅ CORREÇÃO: URL ABSOLUTA com localhost:5000
+                const resposta = await api.post("http://localhost:5000/api/usuarios/login", dadosLogin);
                 console.log("Resposta da API:", resposta);
 
                 if (resposta.success) {
@@ -234,6 +234,7 @@
                     
                     // Salvar dados do usuário no localStorage
                     localStorage.setItem("userData", JSON.stringify(resposta));
+                    localStorage.setItem("token", resposta.data.token);
                     
                     // Redirecionar após breve delay
                     setTimeout(() => {
@@ -268,17 +269,20 @@
         function preencherDemo(usuario) {
             if (usuario === 'ana') {
                 txtEmail.value = "ana.silva@email.com";
-                txtSenha.value = "hash_da_senha_da_ana";
+                txtSenha.value = "qualquer_senha"; // ✅ CORREÇÃO: senha real, não o hash
             } else if (usuario === 'bruno') {
                 txtEmail.value = "bruno.costa@email.com";
-                txtSenha.value = "hash_da_senha_do_bruno";
+                txtSenha.value = "qualquer_senha"; // ✅ CORREÇÃO: senha real, não o hash
+            } else if (usuario === 'mateus') {
+                txtEmail.value = "mateus@email.com";
+                txtSenha.value = "123456";
             }
             showMessage(`Dados de ${usuario} preenchidos! Clique em Entrar.`, "info");
         }
 
         // Adicionar atalhos de teclado para preenchimento rápido (apenas em desenvolvimento)
         document.addEventListener('keydown', function(event) {
-            // Ctrl+1 para Ana, Ctrl+2 para Bruno (apenas em localhost)
+            // Ctrl+1 para Ana, Ctrl+2 para Bruno, Ctrl+3 para Mateus (apenas em localhost)
             if (event.ctrlKey && window.location.hostname === 'localhost') {
                 if (event.key === '1') {
                     event.preventDefault();
@@ -286,6 +290,9 @@
                 } else if (event.key === '2') {
                     event.preventDefault();
                     preencherDemo('bruno');
+                } else if (event.key === '3') {
+                    event.preventDefault();
+                    preencherDemo('mateus');
                 }
             }
         });
@@ -294,9 +301,10 @@
         txtEmail.focus();
 
         console.log("Página de login carregada. Use:");
+        console.log("- mateus@email.com / 123456");
         console.log("- ana.silva@email.com / qualquer_senha");
         console.log("- bruno.costa@email.com / qualquer_senha");
-        console.log("- Em desenvolvimento: Ctrl+1 ou Ctrl+2 para preenchimento rápido");
+        console.log("- Em desenvolvimento: Ctrl+1, Ctrl+2 ou Ctrl+3 para preenchimento rápido");
     </script>
 </body>
 </html>
