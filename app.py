@@ -9,8 +9,10 @@ Responsabilidades:
 """
 def main():
     try:
+        print("🚀 Iniciando servidor Flask...")
+        
         # Cria instância do servidor na porta 8080
-        server = Server(porta=8080)
+        server = Server(porta=5000)  # Mudei para 5000 (padrão Flask)
 
         # Inicializa servidor (DB, middlewares, roteadores)
         server.init()
@@ -18,10 +20,10 @@ def main():
         # Inicia servidor Flask
         server.run()
 
-        print("✅ Servidor iniciado com sucesso")
     except Exception as error:
         print("❌ Erro ao iniciar o servidor:", error)
+        import traceback
+        traceback.print_exc()
 
-
-
-main()
+if __name__ == "__main__":
+    main()
