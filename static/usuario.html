@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Gerenciamento de Usuários</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="/js/bootstrap.bundle.min.js"></script>
+
+  <style>
+    body {
+      padding: 2em;
+    }
+
+    table {
+      margin-top: 1em;
+    }
+  </style>
+</head>
+
+<body class="container">
+  <h1 class="mb-4">Gerenciamento de Usuários</h1>
+
+  <!-- ======================== FORMULÁRIO DE CADASTRO ======================== -->
+  <div class="card mb-4">
+    <div class="card-header">Cadastro de Usuário</div>
+    <div class="card-body">
+      <div class="mb-3">
+        <input type="number" id="txtId" class="form-control mb-2" disabled placeholder="ID (para update ou delete)" />
+        <input type="text" id="txtNome" class="form-control mb-2" placeholder="Nome completo" />
+        <input type="email" id="txtEmail" class="form-control mb-2" placeholder="Email" />
+        <input type="password" id="txtSenha" class="form-control mb-2" placeholder="Senha" />
+        
+        <div class="form-text mb-3">
+          A senha será criptografada automaticamente.
+        </div>
+      </div>
+
+      <div class="mb-3 d-flex gap-2" id="divBotoes"></div>
+    </div>
+
+    <div id="divResposta" class="alert d-inline-block p-2"></div>
+  </div>
+
+  <!-- ======================== TABELA DE USUÁRIOS ======================== -->
+  <div class="card mt-4">
+    <div class="card-header">
+      Lista de Usuários
+    </div>
+    <div class="card-body">
+      <div id="divTabela"></div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação -->
+  <div class="modal fade" id="modalConfirm" tabindex="-1" aria-labelledby="modalConfirmLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalConfirmLabel">Confirmação</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          Tem certeza que deseja excluir este usuário?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmDelete">Excluir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import ApiService from './ApiService.js';
+
+    // ======================== AUTENTICAÇÃO ========================
+    let userData = localStorage.getItem("userData");
+    if (userData) userData = JSON.parse(userData);
+    else window.location.href = "login.html";
+
+    const token = userData.data.token;
+    const api = new ApiService(token);
+
+    let API_DATA;
+
+    // ======================== ELEMENTOS HTML ========================
+    const txtId = document.getElementById("txtId");
+    const txtNome = document.getElementById("txtNome");
+    const txtEmail = document.getElementById("txtEmail");
+    const txtSenha = document.getElementById("txtSenha");
+    const divBotoes = document.getElementById("divBotoes");
+    const divResposta = document.getElementById("divResposta");
+
+    // ======================== FUNÇÃO AUXILIAR PARA CRIAR BOTÕES ========================
+    function createButton(text, className) {
+      const btn = document.createElement("button");
+      btn.textContent = text;
+      btn.className = `btn ${className} flex-fill`;
+      return btn;
+    }
+
+    // ======================== BOTÕES CRUD ========================
+    const btnListar = createButton("Listar", "btn-primary");
+    btnListar.onclick = listAll;
+    divBotoes.appendChild(btnListar);
+
+    const btnCriar = createButton("Criar", "btn-success");
+    btnCriar.onclick = async () => {
+      if (txtNome.value.trim() === "") {
+        showMessage("Nome inválido", "warning");
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(txtEmail.value)) {
+        showMessage("Email inválido. Exemplo: usuario@dominio.com", "warning");
+        return;
+      }
+
+      if (txtSenha.value.length < 6) {
+        showMessage("Senha deve ter no mínimo 6 caracteres", "warning");
+        return;
+      }
+
+      const objetoCriar = {
+        "usuario": {
+          "nome": txtNome.value.trim(),
+          "email": txtEmail.value.trim(),
+          "senha_hash": txtSenha.value.trim()
+        }
+      };
+
+      const resposta = await api.post("/api/usuarios/", objetoCriar);
+      if (resposta.success) {
+        showMessage("Usuário criado com sucesso!", "success");
+        listAll();
+        limparFormulario();
+      } else {
+        showMessage(resposta.error.message, "danger");
+      }
+    };
+    divBotoes.appendChild(btnCriar);
+
+    const btnAtualizar = createButton("Atualizar", "btn-warning");
+    btnAtualizar.onclick = async () => {
+      const id = txtId.value.trim();
+      if (!id) {
+        showMessage("Selecione um usuário para atualizar", "danger");
+        return;
+      }
+
+      if (txtNome.value.trim() === "") {
+        showMessage("Nome inválido", "warning");
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(txtEmail.value)) {
+        showMessage("Email inválido", "warning");
+        return;
+      }
+
+      const objetoAtualizar = {
+        "usuario": {
+          "nome": txtNome.value.trim(),
+          "email": txtEmail.value.trim()
+        }
+      };
+
+      // Se a senha foi preenchida, inclui no update
+      if (txtSenha.value.trim()) {
+        objetoAtualizar.usuario.senha_hash = txtSenha.value.trim();
+      }
+
+      const resposta = await api.put("/api/usuarios/", id, objetoAtualizar);
+      if (resposta.success) {
+        showMessage("Usuário atualizado com sucesso!", "success");
+        listAll();
+        limparFormulario();
+      } else {
+        showMessage(resposta.error.message, "danger");
+      }
+    };
+    divBotoes.appendChild(btnAtualizar);
+
+    const btnExcluir = createButton("Excluir", "btn-danger");
+    btnExcluir.onclick = function () {
+      const id = txtId.value.trim();
+      if (!id) {
+        showMessage("Selecione um usuário para excluir", "danger");
+        return;
+      }
+
+      const modal = new bootstrap.Modal(document.getElementById('modalConfirm'));
+      modal.show();
+
+      const btnConfirmDelete = document.getElementById("btnConfirmDelete");
+      btnConfirmDelete.replaceWith(btnConfirmDelete.cloneNode(true));
+      const newBtnConfirm = document.getElementById("btnConfirmDelete");
+
+      newBtnConfirm.onclick = async function () {
+        try {
+          await api.delete("/api/usuarios/", id);
+          listAll();
+          showMessage(`Usuário ID ${id} excluído com sucesso.`, "success");
+          limparFormulario();
+        } catch (error) {
+          showMessage(`Erro ao excluir usuário: ${error.message}`, "danger");
+        } finally {
+          modal.hide();
+        }
+      };
+    };
+    divBotoes.appendChild(btnExcluir);
+
+    // ======================== FUNÇÕES DE SUPORTE ========================
+    function showMessage(message, type) {
+      divResposta.textContent = message;
+      divResposta.className = `alert alert-${type} d-inline-block p-2`;
+    }
+
+    async function listAll() {
+      try {
+        API_DATA = await api.get("/api/usuarios/");
+        if (API_DATA.success) renderTable(API_DATA);
+      } catch (error) {
+        showMessage("Erro ao carregar usuários: " + error.message, "danger");
+      }
+    }
+
+    function limparFormulario() {
+      txtId.value = "";
+      txtNome.value = "";
+      txtEmail.value = "";
+      txtSenha.value = "";
+      divResposta.textContent = "";
+      divResposta.className = "";
+    }
+
+    function renderTable(dados) {
+      const divTabela = document.getElementById("divTabela");
+      divTabela.innerHTML = "";
+
+      if (!dados.data.usuarios || dados.data.usuarios.length === 0) {
+        divTabela.innerHTML = '<div class="alert alert-info">Nenhum usuário encontrado</div>';
+        return;
+      }
+
+      const table = document.createElement("table");
+      table.className = "table table-bordered table-striped";
+
+      const thead = document.createElement("thead");
+      thead.className = "table-light";
+      const trHead = document.createElement("tr");
+
+      ["ID", "Nome", "Email", "Data de Criação", "Ações"].forEach(text => {
+        const th = document.createElement("th");
+        th.textContent = text;
+        trHead.appendChild(th);
+      });
+
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      dados.data.usuarios.forEach(usuario => {
+        const tr = document.createElement("tr");
+
+        // ID
+        const tdId = document.createElement("td");
+        tdId.textContent = usuario.id;
+        tr.appendChild(tdId);
+
+        // Nome
+        const tdNome = document.createElement("td");
+        tdNome.textContent = usuario.nome;
+        tr.appendChild(tdNome);
+
+        // Email
+        const tdEmail = document.createElement("td");
+        tdEmail.textContent = usuario.email;
+        tr.appendChild(tdEmail);
+
+        // Data de Criação
+        const tdData = document.createElement("td");
+        tdData.textContent = new Date(usuario.data_criacao).toLocaleDateString('pt-BR');
+        tr.appendChild(tdData);
+
+        // Ações
+        const tdAcoes = document.createElement("td");
+        const divBotoes = document.createElement("div");
+        divBotoes.className = "d-flex gap-2";
+
+        const btnSel = createButton("Selecionar", "btn-info btn-sm");
+        btnSel.onclick = () => {
+          txtId.value = usuario.id;
+          txtNome.value = usuario.nome;
+          txtEmail.value = usuario.email;
+          txtSenha.value = "";
+          showMessage("", "");
+        };
+        divBotoes.appendChild(btnSel);
+
+        tdAcoes.appendChild(divBotoes);
+        tr.appendChild(tdAcoes);
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      divTabela.appendChild(table);
+    }
+
+    // Carregar dados ao iniciar
+    listAll();
+  </script>
+</body>
+</html>

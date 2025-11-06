@@ -50,6 +50,7 @@ class ProjetoRoteador:
         def store():
             """
             Rota responsável por criar um novo projeto.
+            Requer autenticação JWT.
             """
             return self.__projeto_control.store()
 
@@ -59,6 +60,7 @@ class ProjetoRoteador:
         def index():
             """
             Rota responsável por listar todos os projetos cadastrados no sistema.
+            Requer autenticação JWT.
             """
             return self.__projeto_control.index()
 
@@ -69,6 +71,7 @@ class ProjetoRoteador:
         def show(id):
             """
             Rota que retorna um projeto específico pelo seu ID.
+            Requer autenticação JWT.
 
             :param id: int - ID do projeto vindo da URI.
             """
@@ -82,6 +85,7 @@ class ProjetoRoteador:
         def update(id):
             """
             Rota que atualiza um projeto existente.
+            Requer autenticação JWT.
 
             :param id: int - ID do projeto a ser atualizado.
             """
@@ -94,6 +98,7 @@ class ProjetoRoteador:
         def destroy(id):
             """
             Rota que remove um projeto pelo seu ID.
+            Requer autenticação JWT.
 
             :param id: int - ID do projeto a ser removido.
             """
@@ -106,10 +111,32 @@ class ProjetoRoteador:
         def show_by_usuario(usuario_id):
             """
             Rota que retorna todos os projetos de um usuário específico.
+            Requer autenticação JWT.
 
             :param usuario_id: int - ID do usuário.
             """
             return self.__projeto_control.show_by_usuario(usuario_id)
+
+        # GET /meus-projetos -> lista projetos do usuário autenticado
+        @self.__blueprint.route('/meus-projetos', methods=['GET'])
+        @self.__jwt_middleware.validate_token
+        def show_meus_projetos():
+            """
+            Rota que retorna todos os projetos do usuário autenticado.
+            Requer autenticação JWT.
+            """
+            # Obtém o ID do usuário do token JWT
+            user_id = self.__jwt_middleware.get_user_id()
+            if not user_id:
+                return jsonify({
+                    "success": False,
+                    "error": {
+                        "message": "Não foi possível identificar o usuário",
+                        "code": 401
+                    }
+                }), 401
+            
+            return self.__projeto_control.show_by_usuario(user_id)
 
         # Retorna o Blueprint configurado para registro na aplicação Flask
         return self.__blueprint

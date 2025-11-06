@@ -30,7 +30,6 @@ from api.roteador.usuario_roteador import UsuarioRoteador
 from api.roteador.projeto_roteador import ProjetoRoteador
 from api.roteador.tarefa_roteador import TarefaRoteador
 
-
 class Server:
     """
     Classe principal do servidor Flask.

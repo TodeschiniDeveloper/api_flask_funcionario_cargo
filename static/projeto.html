@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Gerenciamento de Projetos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="/js/bootstrap.bundle.min.js"></script>
+
+  <style>
+    body {
+      padding: 2em;
+    }
+
+    table {
+      margin-top: 1em;
+    }
+
+    .status-pendente { color: #856404; background-color: #fff3cd; }
+    .status-andamento { color: #004085; background-color: #cce5ff; }
+    .status-concluido { color: #155724; background-color: #d4edda; }
+  </style>
+</head>
+
+<body class="container">
+  <h1 class="mb-4">Gerenciamento de Projetos</h1>
+
+  <!-- ======================== FORMULÁRIO DE CADASTRO ======================== -->
+  <div class="card mb-4">
+    <div class="card-header">Cadastro de Projeto</div>
+    <div class="card-body">
+      <div class="mb-3">
+        <input type="number" id="txtId" class="form-control mb-2" disabled placeholder="ID" />
+        <input type="text" id="txtNome" class="form-control mb-2" placeholder="Nome do projeto" />
+        <textarea id="txtDescricao" class="form-control mb-2" placeholder="Descrição" rows="3"></textarea>
+        
+        <div class="row mb-2">
+          <div class="col">
+            <label for="txtDataInicio" class="form-label">Data de Início</label>
+            <input type="date" id="txtDataInicio" class="form-control">
+          </div>
+          <div class="col">
+            <label for="cboStatus" class="form-label">Status</label>
+            <select id="cboStatus" class="form-select">
+              <option value="Pendente">Pendente</option>
+              <option value="Em Andamento">Em Andamento</option>
+              <option value="Concluído">Concluído</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="cboUsuario" class="form-label">Responsável</label>
+        <select id="cboUsuario" class="form-select mb-3">
+          <option value="-1">Selecione um usuário</option>
+        </select>
+      </div>
+
+      <div class="mb-3 d-flex gap-2" id="divBotoes"></div>
+    </div>
+
+    <div id="divResposta" class="alert d-inline-block p-2"></div>
+  </div>
+
+  <!-- ======================== TABELA DE PROJETOS ======================== -->
+  <div class="card mt-4">
+    <div class="card-header">
+      Lista de Projetos
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <button id="btnMeusProjetos" class="btn btn-outline-primary btn-sm">Meus Projetos</button>
+        <button id="btnTodosProjetos" class="btn btn-outline-secondary btn-sm">Todos os Projetos</button>
+      </div>
+      <div id="divTabela"></div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação -->
+  <div class="modal fade" id="modalConfirm" tabindex="-1" aria-labelledby="modalConfirmLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalConfirmLabel">Confirmação</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          Tem certeza que deseja excluir este projeto? Todas as tarefas relacionadas também serão excluídas.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmDelete">Excluir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import ApiService from './ApiService.js';
+
+    // ======================== AUTENTICAÇÃO ========================
+    let userData = localStorage.getItem("userData");
+    if (userData) userData = JSON.parse(userData);
+    else window.location.href = "login.html";
+
+    const token = userData.data.token;
+    const api = new ApiService(token);
+    const currentUserId = userData.data.user.usuario.id;
+
+    let API_DATA;
+    let usuariosList = [];
+
+    // ======================== ELEMENTOS HTML ========================
+    const txtId = document.getElementById("txtId");
+    const txtNome = document.getElementById("txtNome");
+    const txtDescricao = document.getElementById("txtDescricao");
+    const txtDataInicio = document.getElementById("txtDataInicio");
+    const cboStatus = document.getElementById("cboStatus");
+    const cboUsuario = document.getElementById("cboUsuario");
+    const divBotoes = document.getElementById("divBotoes");
+    const divResposta = document.getElementById("divResposta");
+    const btnMeusProjetos = document.getElementById("btnMeusProjetos");
+    const btnTodosProjetos = document.getElementById("btnTodosProjetos");
+
+    // ======================== FUNÇÃO AUXILIAR PARA CRIAR BOTÕES ========================
+    function createButton(text, className) {
+      const btn = document.createElement("button");
+      btn.textContent = text;
+      btn.className = `btn ${className} flex-fill`;
+      return btn;
+    }
+
+    // ======================== BOTÕES CRUD ========================
+    const btnListar = createButton("Listar", "btn-primary");
+    btnListar.onclick = listAll;
+    divBotoes.appendChild(btnListar);
+
+    const btnCriar = createButton("Criar", "btn-success");
+    btnCriar.onclick = async () => {
+      if (txtNome.value.trim() === "") {
+        showMessage("Nome do projeto é obrigatório", "warning");
+        return;
+      }
+
+      if (cboUsuario.value === "-1") {
+        showMessage("Selecione um responsável", "warning");
+        return;
+      }
+
+      const objetoCriar = {
+        "projeto": {
+          "nome": txtNome.value.trim(),
+          "descricao": txtDescricao.value.trim(),
+          "data_inicio": txtDataInicio.value || null,
+          "status": cboStatus.value,
+          "usuario_id": parseInt(cboUsuario.value)
+        }
+      };
+
+      const resposta = await api.post("/api/projetos/", objetoCriar);
+      if (resposta.success) {
+        showMessage("Projeto criado com sucesso!", "success");
+        listAll();
+        limparFormulario();
+      } else {
+        showMessage(resposta.error.message, "danger");
+      }
+    };
+    divBotoes.appendChild(btnCriar);
+
+    const btnAtualizar = createButton("Atualizar", "btn-warning");
+    btnAtualizar.onclick = async () => {
+      const id = txtId.value.trim();
+      if (!id) {
+        showMessage("Selecione um projeto para atualizar", "danger");
+        return;
+      }
+
+      if (txtNome.value.trim() === "") {
+        showMessage("Nome do projeto é obrigatório", "warning");
+        return;
+      }
+
+      const objetoAtualizar = {
+        "projeto": {
+          "nome": txtNome.value.trim(),
+          "descricao": txtDescricao.value.trim(),
+          "data_inicio": txtDataInicio.value || null,
+          "status": cboStatus.value,
+          "usuario_id": parseInt(cboUsuario.value)
+        }
+      };
+
+      const resposta = await api.put("/api/projetos/", id, objetoAtualizar);
+      if (resposta.success) {
+        showMessage("Projeto atualizado com sucesso!", "success");
+        listAll();
+        limparFormulario();
+      } else {
+        showMessage(resposta.error.message, "danger");
+      }
+    };
+    divBotoes.appendChild(btnAtualizar);
+
+    const btnExcluir = createButton("Excluir", "btn-danger");
+    btnExcluir.onclick = function () {
+      const id = txtId.value.trim();
+      if (!id) {
+        showMessage("Selecione um projeto para excluir", "danger");
+        return;
+      }
+
+      const modal = new bootstrap.Modal(document.getElementById('modalConfirm'));
+      modal.show();
+
+      const btnConfirmDelete = document.getElementById("btnConfirmDelete");
+      btnConfirmDelete.replaceWith(btnConfirmDelete.cloneNode(true));
+      const newBtnConfirm = document.getElementById("btnConfirmDelete");
+
+      newBtnConfirm.onclick = async function () {
+        try {
+          await api.delete("/api/projetos/", id);
+          listAll();
+          showMessage(`Projeto ID ${id} excluído com sucesso.`, "success");
+          limparFormulario();
+        } catch (error) {
+          showMessage(`Erro ao excluir projeto: ${error.message}`, "danger");
+        } finally {
+          modal.hide();
+        }
+      };
+    };
+    divBotoes.appendChild(btnExcluir);
+
+    // ======================== FUNÇÕES DE SUPORTE ========================
+    function showMessage(message, type) {
+      divResposta.textContent = message;
+      divResposta.className = `alert alert-${type} d-inline-block p-2`;
+    }
+
+    async function listAll() {
+      try {
+        API_DATA = await api.get("/api/projetos/");
+        if (API_DATA.success) renderTable(API_DATA);
+      } catch (error) {
+        showMessage("Erro ao carregar projetos: " + error.message, "danger");
+      }
+    }
+
+    async function listMeusProjetos() {
+      try {
+        API_DATA = await api.get(`/api/projetos/usuario/${currentUserId}`);
+        if (API_DATA.success) renderTable(API_DATA);
+      } catch (error) {
+        showMessage("Erro ao carregar meus projetos: " + error.message, "danger");
+      }
+    }
+
+    async function carregarUsuarios() {
+      try {
+        const resposta = await api.get("/api/usuarios/");
+        if (resposta.success) {
+          usuariosList = resposta.data.usuarios;
+          cboUsuario.innerHTML = '<option value="-1">Selecione um usuário</option>';
+          usuariosList.forEach(usuario => {
+            const option = document.createElement("option");
+            option.value = usuario.id;
+            option.textContent = `${usuario.nome} (${usuario.email})`;
+            cboUsuario.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao carregar usuários:", error);
+      }
+    }
+
+    function limparFormulario() {
+      txtId.value = "";
+      txtNome.value = "";
+      txtDescricao.value = "";
+      txtDataInicio.value = "";
+      cboStatus.value = "Pendente";
+      cboUsuario.value = "-1";
+      showMessage("", "");
+    }
+
+    function renderTable(dados) {
+      const divTabela = document.getElementById("divTabela");
+      divTabela.innerHTML = "";
+
+      if (!dados.data.projetos || dados.data.projetos.length === 0) {
+        divTabela.innerHTML = '<div class="alert alert-info">Nenhum projeto encontrado</div>';
+        return;
+      }
+
+      const table = document.createElement("table");
+      table.className = "table table-bordered table-striped";
+
+      const thead = document.createElement("thead");
+      thead.className = "table-light";
+      const trHead = document.createElement("tr");
+
+      ["ID", "Nome", "Descrição", "Data Início", "Status", "Responsável", "Ações"].forEach(text => {
+        const th = document.createElement("th");
+        th.textContent = text;
+        trHead.appendChild(th);
+      });
+
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      dados.data.projetos.forEach(projeto => {
+        const tr = document.createElement("tr");
+
+        // ID
+        const tdId = document.createElement("td");
+        tdId.textContent = projeto.id;
+        tr.appendChild(tdId);
+
+        // Nome
+        const tdNome = document.createElement("td");
+        tdNome.textContent = projeto.nome;
+        tr.appendChild(tdNome);
+
+        // Descrição
+        const tdDesc = document.createElement("td");
+        tdDesc.textContent = projeto.descricao || "-";
+        tr.appendChild(tdDesc);
+
+        // Data Início
+        const tdData = document.createElement("td");
+        tdData.textContent = projeto.data_inicio ? new Date(projeto.data_inicio).toLocaleDateString('pt-BR') : "-";
+        tr.appendChild(tdData);
+
+        // Status
+        const tdStatus = document.createElement("td");
+        tdStatus.textContent = projeto.status;
+        tdStatus.className = `status-${projeto.status.toLowerCase().replace(' ', '-')}`;
+        tr.appendChild(tdStatus);
+
+        // Responsável
+        const tdResponsavel = document.createElement("td");
+        tdResponsavel.textContent = projeto.usuario_nome;
+        tr.appendChild(tdResponsavel);
+
+        // Ações
+        const tdAcoes = document.createElement("td");
+        const divBotoes = document.createElement("div");
+        divBotoes.className = "d-flex gap-2";
+
+        const btnSel = createButton("Selecionar", "btn-info btn-sm");
+        btnSel.onclick = () => {
+          txtId.value = projeto.id;
+          txtNome.value = projeto.nome;
+          txtDescricao.value = projeto.descricao || "";
+          txtDataInicio.value = projeto.data_inicio || "";
+          cboStatus.value = projeto.status;
+          cboUsuario.value = projeto.usuario_id;
+          showMessage("", "");
+        };
+        divBotoes.appendChild(btnSel);
+
+        const btnTarefas = createButton("Tarefas", "btn-secondary btn-sm");
+        btnTarefas.onclick = () => {
+          window.location.href = `tarefas.html?projeto_id=${projeto.id}&projeto_nome=${encodeURIComponent(projeto.nome)}`;
+        };
+        divBotoes.appendChild(btnTarefas);
+
+        tdAcoes.appendChild(divBotoes);
+        tr.appendChild(tdAcoes);
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      divTabela.appendChild(table);
+    }
+
+    // ======================== EVENT LISTENERS ========================
+    btnMeusProjetos.addEventListener("click", listMeusProjetos);
+    btnTodosProjetos.addEventListener("click", listAll);
+
+    // Carregar dados ao iniciar
+    carregarUsuarios();
+    listAll();
+  </script>
+</body>
+</html>
