@@ -169,13 +169,13 @@
                         <a class="nav-link active" href="dashboard.html">
                             <i class="bi bi-speedometer2"></i> Dashboard
                         </a>
-                        <a class="nav-link" href="usuarios.html">
+                        <a class="nav-link" href="usuario.html">
                             <i class="bi bi-people"></i> Usuários
                         </a>
-                        <a class="nav-link" href="projetos.html">
+                        <a class="nav-link" href="projeto.html">
                             <i class="bi bi-folder"></i> Projetos
                         </a>
-                        <a class="nav-link" href="tarefas.html">
+                        <a class="nav-link" href="tarefa.html">
                             <i class="bi bi-check-square"></i> Tarefas
                         </a>
                     </nav>
@@ -183,13 +183,13 @@
                     <div class="quick-actions mt-4">
                         <h6 class="mb-3"><i class="bi bi-lightning"></i> Ações Rápidas</h6>
                         <div class="d-grid gap-2">
-                            <a href="projetos.html" class="btn btn-outline-primary btn-sm">
+                            <a href="projeto.html" class="btn btn-outline-primary btn-sm">
                                 <i class="bi bi-plus-circle"></i> Novo Projeto
                             </a>
-                            <a href="tarefas.html" class="btn btn-outline-success btn-sm">
+                            <a href="tarefa.html" class="btn btn-outline-success btn-sm">
                                 <i class="bi bi-plus-circle"></i> Nova Tarefa
                             </a>
-                            <a href="usuarios.html" class="btn btn-outline-info btn-sm">
+                            <a href="usuario.html" class="btn btn-outline-info btn-sm">
                                 <i class="bi bi-person-plus"></i> Novo Usuário
                             </a>
                         </div>
@@ -303,17 +303,31 @@
         }
 
         async function initializeDashboard() {
-            // Configurar informações do usuário
-            const userName = userData.data.user.usuario.name || userData.data.user.usuario.nome;
-            const userEmail = userData.data.user.usuario.email;
+            // ✅ CORREÇÃO: Estrutura correta dos dados do usuário
+            const userInfo = userData.usuario || userData.data?.usuario || userData.data?.user?.usuario;
+            
+            if (!userInfo) {
+                console.error('Estrutura de dados do usuário inválida:', userData);
+                showError('Erro ao carregar dados do usuário');
+                return;
+            }
+
+            const userName = userInfo.nome || userInfo.name || 'Usuário';
+            const userEmail = userInfo.email || '';
             
             userWelcome.textContent = `Olá, ${userName}`;
             welcomeMessage.textContent = `Bem-vindo(a), ${userName}!`;
             welcomeSubtitle.textContent = `Gerencie seus projetos e tarefas de forma eficiente.`;
 
-            // Configurar API com token
-            const token = userData.data.token;
-            const api = new ApiService(token);
+            // ✅ CORREÇÃO: ApiService com URL base explícita
+            const token = localStorage.getItem("token") || userData.token || userData.data?.token;
+            if (!token) {
+                console.error('Token não encontrado');
+                window.location.href = "login.html";
+                return;
+            }
+
+            const api = new ApiService(token, "http://localhost:5000");
 
             try {
                 // Carregar estatísticas
@@ -330,42 +344,92 @@
 
         async function loadStatistics(api) {
             try {
-                // Carregar contagem de usuários
-                const usuariosRes = await api.get("/api/usuarios/");
-                if (usuariosRes.success) {
+                console.log('📊 Carregando estatísticas...');
+
+                // ✅ CORREÇÃO: /api/usuario/ (formato singular)
+                const usuariosRes = await api.get("/api/usuario/");
+                console.log('Resposta usuários:', usuariosRes);
+                
+                if (usuariosRes && Array.isArray(usuariosRes)) {
+                    usersCount.textContent = usuariosRes.length;
+                } else if (usuariosRes && usuariosRes.data && Array.isArray(usuariosRes.data)) {
+                    usersCount.textContent = usuariosRes.data.length;
+                } else if (usuariosRes && usuariosRes.success && Array.isArray(usuariosRes.data?.usuarios)) {
                     usersCount.textContent = usuariosRes.data.usuarios.length;
+                } else {
+                    usersCount.textContent = '0';
+                    console.warn('Estrutura de resposta de usuários inesperada:', usuariosRes);
                 }
 
-                // Carregar contagem de projetos
-                const projetosRes = await api.get("/api/projetos/");
-                if (projetosRes.success) {
+                // ✅ CORREÇÃO: /api/projeto/ (formato singular)
+                const projetosRes = await api.get("/api/projeto/");
+                console.log('Resposta projetos:', projetosRes);
+                
+                if (projetosRes && Array.isArray(projetosRes)) {
+                    projectsCount.textContent = projetosRes.length;
+                } else if (projetosRes && projetosRes.data && Array.isArray(projetosRes.data)) {
+                    projectsCount.textContent = projetosRes.data.length;
+                } else if (projetosRes && projetosRes.success && Array.isArray(projetosRes.data?.projetos)) {
                     projectsCount.textContent = projetosRes.data.projetos.length;
+                } else {
+                    projectsCount.textContent = '0';
+                    console.warn('Estrutura de resposta de projetos inesperada:', projetosRes);
                 }
 
-                // Carregar contagem de tarefas
-                const tarefasRes = await api.get("/api/tarefas/");
-                if (tarefasRes.success) {
-                    const todasTarefas = tarefasRes.data.tarefas;
-                    tasksCount.textContent = todasTarefas.length;
-                    
-                    // Contar tarefas concluídas
-                    const concluidas = todasTarefas.filter(t => t.concluida).length;
-                    completedCount.textContent = concluidas;
+                // ✅ CORREÇÃO: /api/tarefa/ (formato singular)
+                const tarefasRes = await api.get("/api/tarefa/");
+                console.log('Resposta tarefas:', tarefasRes);
+                
+                let todasTarefas = [];
+                
+                if (tarefasRes && Array.isArray(tarefasRes)) {
+                    todasTarefas = tarefasRes;
+                } else if (tarefasRes && tarefasRes.data && Array.isArray(tarefasRes.data)) {
+                    todasTarefas = tarefasRes.data;
+                } else if (tarefasRes && tarefasRes.success && Array.isArray(tarefasRes.data?.tarefas)) {
+                    todasTarefas = tarefasRes.data.tarefas;
+                } else {
+                    console.warn('Estrutura de resposta de tarefas inesperada:', tarefasRes);
                 }
+
+                tasksCount.textContent = todasTarefas.length;
+                
+                // Contar tarefas concluídas
+                const concluidas = todasTarefas.filter(t => t.concluida === true || t.concluida === 1 || t.status === 'concluido').length;
+                completedCount.textContent = concluidas;
+
+                console.log('✅ Estatísticas carregadas com sucesso');
 
             } catch (error) {
-                console.error('Erro ao carregar estatísticas:', error);
+                console.error('❌ Erro ao carregar estatísticas:', error);
                 // Manter valores zero em caso de erro
+                usersCount.textContent = '0';
+                projectsCount.textContent = '0';
+                tasksCount.textContent = '0';
+                completedCount.textContent = '0';
             }
         }
 
         async function loadRecentActivity(api) {
             try {
-                // Carregar projetos recentes
-                const projetosRes = await api.get("/api/projetos/");
-                if (projetosRes.success && projetosRes.data.projetos.length > 0) {
-                    const projetosRecentes = projetosRes.data.projetos
-                        .sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao))
+                console.log('🕐 Carregando atividade recente...');
+
+                // ✅ CORREÇÃO: /api/projeto/ (formato singular)
+                const projetosRes = await api.get("/api/projeto/");
+                
+                let projetos = [];
+                
+                if (projetosRes && Array.isArray(projetosRes)) {
+                    projetos = projetosRes;
+                } else if (projetosRes && projetosRes.data && Array.isArray(projetosRes.data)) {
+                    projetos = projetosRes.data;
+                } else if (projetosRes && projetosRes.success && Array.isArray(projetosRes.data?.projetos)) {
+                    projetos = projetosRes.data.projetos;
+                }
+
+                if (projetos.length > 0) {
+                    const projetosRecentes = projetos
+                        .sort((a, b) => new Date(b.data_criacao || b.created_at) - new Date(a.data_criacao || a.created_at))
                         .slice(0, 3);
 
                     recentActivity.innerHTML = '';
@@ -375,11 +439,11 @@
                         activityItem.className = 'activity-item';
                         activityItem.innerHTML = `
                             <div class="d-flex justify-content-between">
-                                <strong>Novo Projeto: ${projeto.nome}</strong>
-                                <small class="text-muted">${formatDate(projeto.data_criacao)}</small>
+                                <strong>Novo Projeto: ${projeto.nome || 'Sem nome'}</strong>
+                                <small class="text-muted">${formatDate(projeto.data_criacao || projeto.created_at)}</small>
                             </div>
                             <p class="mb-0">${projeto.descricao || 'Sem descrição'}</p>
-                            <small class="text-muted">Status: ${projeto.status}</small>
+                            <small class="text-muted">Status: ${projeto.status || 'Ativo'}</small>
                         `;
                         recentActivity.appendChild(activityItem);
                     });
@@ -396,8 +460,10 @@
                     `;
                 }
 
+                console.log('✅ Atividade recente carregada com sucesso');
+
             } catch (error) {
-                console.error('Erro ao carregar atividade recente:', error);
+                console.error('❌ Erro ao carregar atividade recente:', error);
                 recentActivity.innerHTML = `
                     <div class="activity-item">
                         <div class="d-flex justify-content-between">
@@ -413,27 +479,50 @@
         function formatDate(dateString) {
             if (!dateString) return 'Data desconhecida';
             
-            const date = new Date(dateString);
-            const now = new Date();
-            const diffTime = Math.abs(now - date);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            try {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffTime = Math.abs(now - date);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            if (diffDays === 1) return 'Hoje';
-            if (diffDays === 2) return 'Ontem';
-            if (diffDays <= 7) return `Há ${diffDays - 1} dias`;
-            
-            return date.toLocaleDateString('pt-BR');
+                if (diffDays === 1) return 'Hoje';
+                if (diffDays === 2) return 'Ontem';
+                if (diffDays <= 7) return `Há ${diffDays - 1} dias`;
+                
+                return date.toLocaleDateString('pt-BR');
+            } catch (error) {
+                return 'Data inválida';
+            }
         }
 
         function showError(message) {
             // Poderia usar um toast ou modal para mostrar erros
-            console.error(message);
+            console.error('❌ Erro:', message);
+            
+            // Mostrar mensagem temporária no dashboard
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger alert-dismissible fade show';
+            errorDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const container = document.querySelector('.container.py-4');
+            container.insertBefore(errorDiv, container.firstChild);
+            
+            // Auto-remover após 5 segundos
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.remove();
+                }
+            }, 5000);
         }
 
         // Logout
         btnLogout.addEventListener('click', function() {
             if (confirm('Tem certeza que deseja sair?')) {
                 localStorage.removeItem('userData');
+                localStorage.removeItem('token');
                 window.location.href = 'login.html';
             }
         });
@@ -441,14 +530,19 @@
         // Atualizar estatísticas periodicamente (a cada 30 segundos)
         setInterval(async () => {
             const userData = localStorage.getItem("userData");
-            if (userData) {
-                const token = JSON.parse(userData).data.token;
-                const api = new ApiService(token);
+            const token = localStorage.getItem("token");
+            
+            if (userData && token) {
+                const api = new ApiService(token, "http://localhost:5000");
                 await loadStatistics(api);
             }
         }, 30000);
 
-        console.log('Dashboard inicializado com sucesso!');
+        console.log('🚀 Dashboard inicializado com sucesso!');
+        console.log('💡 URLs no formato SINGULAR:');
+        console.log('   - /api/usuario/');
+        console.log('   - /api/projeto/');
+        console.log('   - /api/tarefa/');
     </script>
 </body>
 </html>

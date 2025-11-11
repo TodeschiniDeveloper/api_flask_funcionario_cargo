@@ -72,7 +72,7 @@ class UsuarioMiddleware:
 
         Verifica apenas a existência:
         - O objeto 'usuario' existe
-        - Campos obrigatórios: email, senha_hash
+        - Campos obrigatórios: email, senha
         """
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -84,7 +84,8 @@ class UsuarioMiddleware:
 
             usuario = body['usuario']
 
-            campos_obrigatorios = ["email", "senha_hash"]
+            # ✅ CORREÇÃO CRÍTICA: Mudar de "senha_hash" para "senha"
+            campos_obrigatorios = ["email", "senha"]
             for campo in campos_obrigatorios:
                 if campo not in usuario:
                     raise ErrorResponse(400, "Erro na validação de dados", {"message": f"O campo '{campo}' é obrigatório!"})

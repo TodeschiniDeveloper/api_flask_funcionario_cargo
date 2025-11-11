@@ -5,51 +5,142 @@
   <meta charset="UTF-8" />
   <title>Gerenciamento de Usuários</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="/css/bootstrap.min.css" rel="stylesheet" />
-  <script src="/js/bootstrap.bundle.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <style>
     body {
       padding: 2em;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
     }
 
-    table {
-      margin-top: 1em;
+    .card {
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      border: none;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border-radius: 15px 15px 0 0 !important;
+      font-weight: 600;
+    }
+
+    .btn {
+      border-radius: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .table {
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .table th {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      color: #667eea !important;
+    }
+
+    .btn-logout {
+      background: linear-gradient(135deg, #dc3545, #c82333);
+      border: none;
+      color: white;
+      padding: 0.5rem 1.5rem;
+      border-radius: 25px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-logout:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
     }
   </style>
 </head>
 
-<body class="container">
-  <h1 class="mb-4">Gerenciamento de Usuários</h1>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="dashboard.html">
+        <i class="bi bi-kanban"></i> Sistema de Projetos
+      </a>
+      <div class="d-flex align-items-center">
+        <span class="navbar-text me-3" id="userWelcome"></span>
+        <a href="usuario.html" class="btn btn-outline-primary me-2">
+          <i class="bi bi-people"></i> Usuários
+        </a>
+        <a href="projeto.html" class="btn btn-outline-success me-2">
+          <i class="bi bi-folder"></i> Projetos
+        </a>
+        <a href="tarefa.html" class="btn btn-outline-warning me-2">
+          <i class="bi bi-check-square"></i> Tarefas
+        </a>
+        <button class="btn btn-logout" id="btnLogout">
+          <i class="bi bi-box-arrow-right"></i> Sair
+        </button>
+      </div>
+    </div>
+  </nav>
 
-  <!-- ======================== FORMULÁRIO DE CADASTRO ======================== -->
-  <div class="card mb-4">
-    <div class="card-header">Cadastro de Usuário</div>
-    <div class="card-body">
-      <div class="mb-3">
-        <input type="number" id="txtId" class="form-control mb-2" disabled placeholder="ID (para update ou delete)" />
-        <input type="text" id="txtNome" class="form-control mb-2" placeholder="Nome completo" />
-        <input type="email" id="txtEmail" class="form-control mb-2" placeholder="Email" />
-        <input type="password" id="txtSenha" class="form-control mb-2" placeholder="Senha" />
-        
-        <div class="form-text mb-3">
-          A senha será criptografada automaticamente.
+  <div class="container">
+    <h1 class="mb-4 text-dark" id="tituloPagina">
+      <i class="bi bi-people"></i> Gerenciamento de Usuários
+    </h1>
+
+    <!-- ======================== FORMULÁRIO DE CADASTRO ======================== -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="bi bi-person-plus"></i> Cadastro de Usuário
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <input type="number" id="txtId" class="form-control mb-2" disabled placeholder="ID" />
+          <input type="text" id="txtNome" class="form-control mb-2" placeholder="Nome completo" />
+          <input type="email" id="txtEmail" class="form-control mb-2" placeholder="Email" />
+          <input type="password" id="txtSenha" class="form-control mb-2" placeholder="Senha" />
+          
+          <div class="form-text mb-3">
+            A senha será criptografada automaticamente.
+          </div>
         </div>
+
+        <div class="mb-3 d-flex gap-2" id="divBotoes"></div>
       </div>
 
-      <div class="mb-3 d-flex gap-2" id="divBotoes"></div>
+      <div id="divResposta" class="alert m-3" style="display: none;"></div>
     </div>
 
-    <div id="divResposta" class="alert d-inline-block p-2"></div>
-  </div>
-
-  <!-- ======================== TABELA DE USUÁRIOS ======================== -->
-  <div class="card mt-4">
-    <div class="card-header">
-      Lista de Usuários
-    </div>
-    <div class="card-body">
-      <div id="divTabela"></div>
+    <!-- ======================== TABELA DE USUÁRIOS ======================== -->
+    <div class="card mt-4">
+      <div class="card-header">
+        <i class="bi bi-list-ul"></i> Lista de Usuários
+        <button class="btn btn-sm btn-outline-light float-end" onclick="listAll()">
+          <i class="bi bi-arrow-clockwise"></i> Atualizar
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="divTabela">
+          <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando usuários...</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -58,15 +149,19 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="modalConfirmLabel">Confirmação</h5>
+          <h5 class="modal-title" id="modalConfirmLabel">
+            <i class="bi bi-exclamation-triangle text-warning"></i> Confirmação
+          </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
         <div class="modal-body">
-          Tem certeza que deseja excluir este usuário?
+          Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="btnConfirmDelete">Excluir</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmDelete">
+            <i class="bi bi-trash"></i> Excluir
+          </button>
         </div>
       </div>
     </div>
@@ -77,11 +172,21 @@
 
     // ======================== AUTENTICAÇÃO ========================
     let userData = localStorage.getItem("userData");
-    if (userData) userData = JSON.parse(userData);
-    else window.location.href = "login.html";
+    if (userData) {
+      userData = JSON.parse(userData);
+      
+      // Configurar saudação do usuário
+      const userInfo = userData.usuario || userData.data?.usuario || userData.data?.user?.usuario;
+      if (userInfo) {
+        const userName = userInfo.nome || userInfo.name || 'Usuário';
+        document.getElementById('userWelcome').textContent = `Olá, ${userName}`;
+      }
+    } else {
+      window.location.href = "login.html";
+    }
 
-    const token = userData.data.token;
-    const api = new ApiService(token);
+    const token = localStorage.getItem("token") || userData.token || userData.data?.token;
+    const api = new ApiService(token, "http://localhost:5000");
 
     let API_DATA;
 
@@ -92,21 +197,19 @@
     const txtSenha = document.getElementById("txtSenha");
     const divBotoes = document.getElementById("divBotoes");
     const divResposta = document.getElementById("divResposta");
+    const tituloPagina = document.getElementById("tituloPagina");
+    const btnLogout = document.getElementById("btnLogout");
 
     // ======================== FUNÇÃO AUXILIAR PARA CRIAR BOTÕES ========================
-    function createButton(text, className) {
+    function createButton(text, className, icon = null) {
       const btn = document.createElement("button");
-      btn.textContent = text;
+      btn.innerHTML = icon ? `<i class="bi ${icon}"></i> ${text}` : text;
       btn.className = `btn ${className} flex-fill`;
       return btn;
     }
 
     // ======================== BOTÕES CRUD ========================
-    const btnListar = createButton("Listar", "btn-primary");
-    btnListar.onclick = listAll;
-    divBotoes.appendChild(btnListar);
-
-    const btnCriar = createButton("Criar", "btn-success");
+    const btnCriar = createButton("Criar", "btn-success", "bi-plus-circle");
     btnCriar.onclick = async () => {
       if (txtNome.value.trim() === "") {
         showMessage("Nome inválido", "warning");
@@ -132,18 +235,20 @@
         }
       };
 
-      const resposta = await api.post("/api/usuarios/", objetoCriar);
+      const resposta = await api.post("/api/usuario/", objetoCriar);
+      console.log("Resposta criar usuário:", resposta);
+      
       if (resposta.success) {
         showMessage("Usuário criado com sucesso!", "success");
         listAll();
         limparFormulario();
       } else {
-        showMessage(resposta.error.message, "danger");
+        showMessage(resposta.error?.message || "Erro ao criar usuário", "danger");
       }
     };
     divBotoes.appendChild(btnCriar);
 
-    const btnAtualizar = createButton("Atualizar", "btn-warning");
+    const btnAtualizar = createButton("Atualizar", "btn-warning", "bi-arrow-clockwise");
     btnAtualizar.onclick = async () => {
       const id = txtId.value.trim();
       if (!id) {
@@ -174,18 +279,21 @@
         objetoAtualizar.usuario.senha_hash = txtSenha.value.trim();
       }
 
-      const resposta = await api.put("/api/usuarios/", id, objetoAtualizar);
-      if (resposta.success) {
+      // ✅ CORREÇÃO: Usa put com URL correta (sem barra extra)
+      const resposta = await api.put("/api/usuario", id, objetoAtualizar);
+      console.log("Resposta atualizar usuário:", resposta);
+      
+      if (resposta && resposta.success) {
         showMessage("Usuário atualizado com sucesso!", "success");
         listAll();
         limparFormulario();
       } else {
-        showMessage(resposta.error.message, "danger");
+        showMessage(resposta?.error?.message || "Erro ao atualizar usuário", "danger");
       }
     };
     divBotoes.appendChild(btnAtualizar);
 
-    const btnExcluir = createButton("Excluir", "btn-danger");
+    const btnExcluir = createButton("Excluir", "btn-danger", "bi-trash");
     btnExcluir.onclick = function () {
       const id = txtId.value.trim();
       if (!id) {
@@ -202,10 +310,15 @@
 
       newBtnConfirm.onclick = async function () {
         try {
-          await api.delete("/api/usuarios/", id);
-          listAll();
-          showMessage(`Usuário ID ${id} excluído com sucesso.`, "success");
-          limparFormulario();
+          // ✅ CORREÇÃO: Usa delete com URL correta (sem barra extra)
+          const resposta = await api.delete("/api/usuario", id);
+          if (resposta && resposta.success) {
+            listAll();
+            showMessage(`Usuário ID ${id} excluído com sucesso.`, "success");
+            limparFormulario();
+          } else {
+            showMessage(`Erro ao excluir usuário: ${resposta?.error?.message || "Erro desconhecido"}`, "danger");
+          }
         } catch (error) {
           showMessage(`Erro ao excluir usuário: ${error.message}`, "danger");
         } finally {
@@ -215,16 +328,33 @@
     };
     divBotoes.appendChild(btnExcluir);
 
+    const btnLimpar = createButton("Limpar", "btn-info", "bi-eraser");
+    btnLimpar.onclick = limparFormulario;
+    divBotoes.appendChild(btnLimpar);
+
     // ======================== FUNÇÕES DE SUPORTE ========================
     function showMessage(message, type) {
       divResposta.textContent = message;
-      divResposta.className = `alert alert-${type} d-inline-block p-2`;
+      divResposta.className = `alert alert-${type} m-3`;
+      divResposta.style.display = 'block';
+
+      if (type === 'success') {
+        setTimeout(() => {
+          divResposta.style.display = 'none';
+        }, 3000);
+      }
     }
 
     async function listAll() {
       try {
-        API_DATA = await api.get("/api/usuarios/");
-        if (API_DATA.success) renderTable(API_DATA);
+        API_DATA = await api.get("/api/usuario/");
+        console.log("Dados carregados:", API_DATA);
+        
+        if (API_DATA && (API_DATA.success || Array.isArray(API_DATA))) {
+          renderTable(API_DATA);
+        } else {
+          showMessage("Nenhum usuário encontrado", "info");
+        }
       } catch (error) {
         showMessage("Erro ao carregar usuários: " + error.message, "danger");
       }
@@ -235,21 +365,33 @@
       txtNome.value = "";
       txtEmail.value = "";
       txtSenha.value = "";
-      divResposta.textContent = "";
-      divResposta.className = "";
+      divResposta.style.display = "none";
     }
 
     function renderTable(dados) {
       const divTabela = document.getElementById("divTabela");
       divTabela.innerHTML = "";
 
-      if (!dados.data.usuarios || dados.data.usuarios.length === 0) {
-        divTabela.innerHTML = '<div class="alert alert-info">Nenhum usuário encontrado</div>';
+      let usuarios = [];
+
+      // ✅ CORREÇÃO: Lida com diferentes estruturas de resposta
+      if (dados && Array.isArray(dados)) {
+        usuarios = dados;
+      } else if (dados && dados.data && Array.isArray(dados.data)) {
+        usuarios = dados.data;
+      } else if (dados && dados.success && Array.isArray(dados.data?.usuarios)) {
+        usuarios = dados.data.usuarios;
+      } else if (dados && dados.usuarios && Array.isArray(dados.usuarios)) {
+        usuarios = dados.usuarios;
+      }
+
+      if (!usuarios || usuarios.length === 0) {
+        divTabela.innerHTML = '<div class="alert alert-info text-center">Nenhum Usuário encontrado</div>';
         return;
       }
 
       const table = document.createElement("table");
-      table.className = "table table-bordered table-striped";
+      table.className = "table table-bordered table-striped table-hover";
 
       const thead = document.createElement("thead");
       thead.className = "table-light";
@@ -266,7 +408,7 @@
 
       const tbody = document.createElement("tbody");
 
-      dados.data.usuarios.forEach(usuario => {
+      usuarios.forEach(usuario => {
         const tr = document.createElement("tr");
 
         // ID
@@ -276,17 +418,21 @@
 
         // Nome
         const tdNome = document.createElement("td");
-        tdNome.textContent = usuario.nome;
+        tdNome.textContent = usuario.nome || 'Sem nome';
         tr.appendChild(tdNome);
 
         // Email
         const tdEmail = document.createElement("td");
-        tdEmail.textContent = usuario.email;
+        tdEmail.textContent = usuario.email || 'Sem email';
         tr.appendChild(tdEmail);
 
         // Data de Criação
         const tdData = document.createElement("td");
-        tdData.textContent = new Date(usuario.data_criacao).toLocaleDateString('pt-BR');
+        if (usuario.data_criacao || usuario.created_at) {
+          tdData.textContent = new Date(usuario.data_criacao || usuario.created_at).toLocaleDateString('pt-BR');
+        } else {
+          tdData.textContent = 'N/A';
+        }
         tr.appendChild(tdData);
 
         // Ações
@@ -294,13 +440,13 @@
         const divBotoes = document.createElement("div");
         divBotoes.className = "d-flex gap-2";
 
-        const btnSel = createButton("Selecionar", "btn-info btn-sm");
+        const btnSel = createButton("Selecionar", "btn-info btn-sm", "bi-pencil");
         btnSel.onclick = () => {
           txtId.value = usuario.id;
-          txtNome.value = usuario.nome;
-          txtEmail.value = usuario.email;
+          txtNome.value = usuario.nome || '';
+          txtEmail.value = usuario.email || '';
           txtSenha.value = "";
-          showMessage("", "");
+          showMessage("Usuário selecionado para edição", "info");
         };
         divBotoes.appendChild(btnSel);
 
@@ -314,8 +460,27 @@
       divTabela.appendChild(table);
     }
 
+    // Logout
+    btnLogout.addEventListener('click', function() {
+      if (confirm('Tem certeza que deseja sair?')) {
+        localStorage.removeItem('userData');
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+      }
+    });
+
     // Carregar dados ao iniciar
     listAll();
+
+    console.log("🚀 Página de usuários carregada!");
+    console.log("💡 URLs no formato SINGULAR:");
+    console.log("   - GET /api/usuario/");
+    console.log("   - POST /api/usuario/");
+    console.log("   - PUT /api/usuario/{id}");
+    console.log("   - DELETE /api/usuario/{id}");
   </script>
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
 </body>
 </html>

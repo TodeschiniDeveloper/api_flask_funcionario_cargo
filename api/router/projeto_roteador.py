@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from api.middleware.jwt_middleware import JwtMiddleware
 from api.middleware.projeto_middleware import ProjetoMiddleware
 from api.control.projeto_control import ProjetoControl
@@ -27,7 +27,7 @@ class ProjetoRoteador:
         self.__projeto_middleware = projeto_middleware
         self.__projeto_control = projeto_control
 
-        # Blueprint é a coleção de rotas da entidade Projeto
+        # ✅ CORREÇÃO: Blueprint com nome no singular
         self.__blueprint = Blueprint('projeto', __name__)
 
     def create_routes(self):
@@ -41,6 +41,7 @@ class ProjetoRoteador:
         - PUT /<id>     -> Atualiza um projeto por ID
         - DELETE /<id>  -> Remove um projeto por ID
         - GET /usuario/<usuario_id> -> Lista projetos por usuário
+        - GET /meus-projetos -> Lista projetos do usuário autenticado
         """
 
         # POST / -> cria um projeto

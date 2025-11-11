@@ -20,18 +20,24 @@ class ErrorResponse(Exception):
         """
         super().__init__(message)
         self.__httpCode = httpCode
+        self.__message = message  # ✅ CORREÇÃO: Armazena a mensagem
         self.__error = error
 
     @property
-    def httpCode(self) -> int:
+    def status_code(self) -> int:
         """Retorna o código HTTP associado ao erro"""
         return self.__httpCode
 
     @property
-    def error(self):
+    def message(self) -> str:
+        """✅ CORREÇÃO: Retorna a mensagem de erro"""
+        return self.__message
+
+    @property
+    def details(self):
         """Retorna informações adicionais sobre o erro"""
         return self.__error
 
     def __str__(self) -> str:
         """Representação textual do erro"""
-        return f"[{self.__httpCode}] {self.args[0]} | Detalhes: {self.__error}"
+        return f"[{self.__httpCode}] {self.__message} | Detalhes: {self.__error}"

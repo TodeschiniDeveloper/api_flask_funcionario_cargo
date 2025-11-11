@@ -1,3 +1,6 @@
+# models/usuario.py
+from datetime import datetime
+
 class Usuario:
     def __init__(self):
         """
@@ -35,6 +38,10 @@ class Usuario:
         >>> usuario.id = 3.14  # ❌ lança erro
         >>> usuario.id = None  # ❌ lança erro
         """
+        if value is None:
+            self.__id = None
+            return
+            
         try:
             parsed = int(value)
         except (ValueError, TypeError):
@@ -71,6 +78,9 @@ class Usuario:
         >>> usuario.nome = ""            # ❌ lança erro
         >>> usuario.nome = None          # ❌ lança erro
         """
+        if value is None:
+            raise ValueError("nome não pode ser None.")
+
         if not isinstance(value, str):
             raise ValueError("nome deve ser uma string.")
 
@@ -106,6 +116,9 @@ class Usuario:
         >>> usuario.email = ""                # ❌ lança erro
         >>> usuario.email = None              # ❌ lança erro
         """
+        if value is None:
+            raise ValueError("email não pode ser None.")
+
         if not isinstance(value, str):
             raise ValueError("email deve ser uma string.")
 
@@ -142,6 +155,9 @@ class Usuario:
         >>> usuario.senha_hash = ""                # ❌ lança erro
         >>> usuario.senha_hash = None              # ❌ lança erro
         """
+        if value is None:
+            raise ValueError("senha_hash não pode ser None.")
+
         if not isinstance(value, str):
             raise ValueError("senha_hash deve ser uma string.")
 
@@ -175,18 +191,23 @@ class Usuario:
         >>> usuario.data_criacao = datetime.now()   # ✅ válido
         >>> usuario.data_criacao = "2023-01-01"     # ❌ lança erro
         """
+        if value is None:
+            self.__data_criacao = None
+            return
+            
         from datetime import datetime
         if not isinstance(value, datetime):
             raise ValueError("data_criacao deve ser um objeto datetime.")
 
         self.__data_criacao = value
 
-
-# -*- coding: utf-8 -*-
-"""
-Representa a entidade Projeto do sistema.
-
-Objetivo:
-- Encapsular os dados de um projeto.
-- Garantir integridade dos atributos via getters e setters.
-"""
+    def to_dict(self):
+        """
+        Converte o objeto Usuario para dicionário
+        """
+        return {
+            'id': self.__id,
+            'nome': self.__nome,
+            'email': self.__email,
+            'data_criacao': self.__data_criacao.strftime('%Y-%m-%d %H:%M:%S') if self.__data_criacao else None
+        }

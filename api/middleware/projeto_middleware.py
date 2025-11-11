@@ -18,7 +18,7 @@ class ProjetoMiddleware:
 
         Verifica apenas a existência:
         - O objeto 'projeto' existe
-        - Campos obrigatórios: nome, usuario_id
+        - Campos obrigatórios: nome, status
         """
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -30,8 +30,8 @@ class ProjetoMiddleware:
 
             projeto = body['projeto']
 
-            # Apenas verificar existência dos campos obrigatórios
-            campos_obrigatorios = ["nome", "usuario_id"]
+            # ✅ CORREÇÃO: Campos obrigatórios - nome e status (usuario_id é opcional)
+            campos_obrigatorios = ["nome", "status"]
             for campo in campos_obrigatorios:
                 if campo not in projeto:
                     raise ErrorResponse(400, "Erro na validação de dados", {"message": f"O campo '{campo}' é obrigatório!"})
@@ -57,7 +57,7 @@ class ProjetoMiddleware:
 
             projeto = body['projeto']
 
-            # Campos obrigatórios para atualização
+            # ✅ CORREÇÃO: Campos obrigatórios para atualização
             campos_obrigatorios = ["nome", "status"]
             for campo in campos_obrigatorios:
                 if campo not in projeto:

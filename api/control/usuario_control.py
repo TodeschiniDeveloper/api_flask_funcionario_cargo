@@ -1,16 +1,9 @@
-# -*- coding: utf-8 -*-
+# control/usuario_control.py
 from flask import request, jsonify
 import traceback
 from api.service.usuario_service import UsuarioService
 from api.utils.error_response import ErrorResponse
 
-"""
-Classe responsável por controlar os endpoints da API REST para a entidade Usuario.
-
-Implementa métodos de CRUD e autenticação, utilizando injeção de dependência
-para receber a instância de UsuarioService, desacoplando a lógica de negócio
-da camada de controle.
-"""
 class UsuarioControl:
     def __init__(self, usuario_service: UsuarioService):
         """
@@ -25,6 +18,15 @@ class UsuarioControl:
         print("🔵 UsuarioControl.login()")
         try:
             json_usuario = request.json.get("usuario")
+            if not json_usuario:
+                return jsonify({
+                    "success": False,
+                    "error": {
+                        "message": "Dados do usuário não fornecidos",
+                        "code": 400
+                    }
+                }), 400
+
             resultado = self.__usuario_service.loginUsuario(json_usuario)
             return jsonify({
                 "success": True,
@@ -55,6 +57,15 @@ class UsuarioControl:
         print("🔵 UsuarioControl.store()")
         try:
             json_usuario = request.json.get("usuario")
+            if not json_usuario:
+                return jsonify({
+                    "success": False,
+                    "error": {
+                        "message": "Dados do usuário não fornecidos",
+                        "code": 400
+                    }
+                }), 400
+
             newIdUsuario = self.__usuario_service.createUsuario(json_usuario)
             return jsonify({
                 "success": True,
@@ -96,6 +107,15 @@ class UsuarioControl:
                 "message": "Executado com sucesso",
                 "data": {"usuarios": lista_usuarios}
             }), 200
+        except ErrorResponse as e:
+            return jsonify({
+                "success": False,
+                "error": {
+                    "message": e.message,
+                    "details": e.details,
+                    "code": e.status_code
+                }
+            }), e.status_code
         except Exception as e:
             print(f"❌ Erro inesperado em index: {traceback.format_exc()}")
             return jsonify({

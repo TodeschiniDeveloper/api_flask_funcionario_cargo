@@ -4,13 +4,17 @@
  */
 export default class ApiService {
     #token;  // Atributo privado para armazenar o token de autenticação
+    #baseURL; // Atributo privado para a URL base da API
 
     /**
      * Construtor da classe ApiService.
      * @param {string|null} token - Token de autenticação opcional para incluir no header Authorization.
+     * @param {string} baseURL - URL base da API (padrão: localhost:5000)
      */
-    constructor(token = null) {
-        this.#token = token;  // Inicializa o token privado com o valor passado ou null
+    constructor(token = null, baseURL = "http://localhost:5000") {
+        this.#token = token;
+        this.#baseURL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL; // Remove barra final
+        console.log(`🔄 ApiService inicializado - BaseURL: ${this.#baseURL}`);
     }
 
     /**
@@ -21,14 +25,14 @@ export default class ApiService {
      */
     async simpleGet(uri) {
         try {
-            const response = await fetch(uri);            // Faz a requisição HTTP GET
-            const jsonObj = await response.json();        // Converte a resposta para JSON
-            console.log("GET:", uri, jsonObj);             // Log para depuração
-            return jsonObj;                                // Retorna o JSON obtido
+            const response = await fetch(uri);
+            const jsonObj = await response.json();
+            console.log("GET:", uri, jsonObj);
+            return jsonObj;
 
         } catch (error) {
-            console.error("Erro ao buscar dados:", error.message);  // Exibe erro no console
-            return [];                                     // Retorna array vazio em caso de erro
+            console.error("Erro ao buscar dados:", error.message);
+            return [];
         }
     }
 
@@ -36,33 +40,83 @@ export default class ApiService {
      * Método para requisição GET com headers, incluindo token se presente.
      * Usado para APIs que exigem autenticação ou headers customizados.
      * @param {string} uri - URL do recurso para a requisição GET.
-     * @returns {Promise<Object|Array>} Retorna JSON da resposta ou array vazio em caso de erro.
+     * @returns {Promise<Object>} Retorna JSON da resposta ou objeto de erro padronizado.
      */
     async get(uri) {
         try {
-            // Configura headers padrão para JSON
+            // ✅ CORREÇÃO: Usa URL completa com baseURL e tratamento de barras
+            const cleanUri = uri.startsWith('/') ? uri : `/${uri}`;
+            const fullUrl = `${this.#baseURL}${cleanUri}`;
+            
             const headers = {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             };
 
-            // Adiciona header Authorization se token estiver configurado
             if (this.#token) {
                 headers["Authorization"] = `Bearer ${this.#token}`;
             }
 
-            // Faz requisição GET com headers configurados
-            const response = await fetch(uri, {
+            console.log("🔍 Fazendo GET para:", fullUrl);
+            
+            const response = await fetch(fullUrl, {
                 method: "GET",
-                headers: headers
+                headers: headers,
+                mode: 'cors', // ✅ CORREÇÃO: Explicita modo CORS
+                credentials: 'include' // ✅ CORREÇÃO: Inclui credenciais
             });
 
-            const jsonObj = await response.json();   // Converte resposta para JSON
-            console.log("GET:", uri, jsonObj);       // Log para depuração
-            return jsonObj;                           // Retorna JSON da resposta
+            // ✅ CORREÇÃO MELHORADA: Para CORS, verifica se a resposta foi bloqueada
+            if (response.status === 0 || response.type === 'opaque') {
+                throw new Error('CORS Policy blocked the request - Verifique a configuração do servidor');
+            }
+
+            if (!response.ok) {
+                // Tenta obter mensagem de erro da resposta
+                let errorMessage = `HTTP Error: ${response.status} ${response.statusText}`;
+                try {
+                    const errorText = await response.text();
+                    if (errorText) {
+                        const errorJson = JSON.parse(errorText);
+                        errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+                    }
+                } catch (e) {
+                    // Ignora erro de parse
+                }
+                throw new Error(errorMessage);
+            }
+
+            // ✅ CORREÇÃO: Verifica se a resposta é JSON válido
+            const text = await response.text();
+            let jsonObj;
+            
+            try {
+                jsonObj = text ? JSON.parse(text) : {};
+            } catch (parseError) {
+                console.error("❌ Resposta não é JSON válido:", text.substring(0, 100));
+                // ✅ CORREÇÃO: Retorna objeto de erro padronizado
+                return {
+                    success: false,
+                    error: {
+                        message: `Resposta não é JSON: ${response.status} ${response.statusText}`,
+                        code: response.status
+                    }
+                };
+            }
+
+            console.log("✅ GET bem-sucedido:", fullUrl, jsonObj);
+            return jsonObj;
 
         } catch (error) {
-            console.error("Erro ao buscar dados:", error.message);
-            return [];                               // Retorna array vazio em caso de erro
+            console.error("❌ Erro ao buscar dados:", error.message);
+            // ✅ CORREÇÃO: Retorna objeto de erro padronizado
+            return {
+                success: false,
+                error: {
+                    message: error.message,
+                    code: 500
+                }
+            };
         }
     }
 
@@ -71,38 +125,69 @@ export default class ApiService {
      * Monta a URL com o ID no final e faz a requisição.
      * @param {string} uri - URL base do recurso.
      * @param {string|number} id - Identificador do recurso a ser buscado.
-     * @returns {Promise<Object|null>} Retorna JSON do recurso ou null em caso de erro.
+     * @returns {Promise<Object>} Retorna JSON do recurso ou objeto de erro padronizado.
      */
     async getById(uri, id) {
         try {
+            // ✅ CORREÇÃO: Remove barra extra na URL
+            const cleanUri = uri.endsWith('/') ? uri.slice(0, -1) : uri;
+            const fullUrl = `${this.#baseURL}${cleanUri}/${id}`;
+            
             const headers = {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             };
 
             if (this.#token) {
                 headers["Authorization"] = `Bearer ${this.#token}`;
             }
 
-            // Concatena URI com ID para buscar recurso específico
-            const fullUri = `${uri}/${id}`;
-
-            const response = await fetch(fullUri, {
+            console.log("🔍 Fazendo GET BY ID para:", fullUrl);
+            
+            const response = await fetch(fullUrl, {
                 method: "GET",
-                headers: headers
+                headers: headers,
+                mode: 'cors',
+                credentials: 'include'
             });
 
-            // Verifica se a resposta HTTP foi bem sucedida (status 2xx)
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status}`);
+            // ✅ CORREÇÃO: Para CORS, verifica se a resposta foi bloqueada
+            if (response.status === 0 || response.type === 'opaque') {
+                throw new Error('CORS Policy blocked the request');
             }
 
-            const jsonObj = await response.json();
-            console.log("GET BY ID:", fullUri, jsonObj);
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+            }
+
+            const text = await response.text();
+            let jsonObj;
+            
+            try {
+                jsonObj = text ? JSON.parse(text) : {};
+            } catch (parseError) {
+                console.error("❌ Resposta não é JSON válido:", text.substring(0, 100));
+                return {
+                    success: false,
+                    error: {
+                        message: `Resposta não é JSON: ${response.status} ${response.statusText}`,
+                        code: response.status
+                    }
+                };
+            }
+
+            console.log("✅ GET BY ID bem-sucedido:", fullUrl, jsonObj);
             return jsonObj;
 
         } catch (error) {
-            console.error("Erro ao buscar por ID:", error.message);
-            return null;  // Retorna null se houve erro na requisição
+            console.error("❌ Erro ao buscar por ID:", error.message);
+            return {
+                success: false,
+                error: {
+                    message: error.message,
+                    code: 500
+                }
+            };
         }
     }
 
@@ -111,32 +196,81 @@ export default class ApiService {
      * Envia o objeto JSON serializado no corpo da requisição.
      * @param {string} uri - URL do endpoint para POST.
      * @param {Object} jsonObject - Objeto a ser enviado como corpo JSON.
-     * @returns {Promise<Object|Array>} Retorna JSON da resposta ou array vazio em caso de erro.
+     * @returns {Promise<Object>} Retorna JSON da resposta ou objeto de erro padronizado.
      */
     async post(uri, jsonObject) {
         try {
+            // ✅ CORREÇÃO: Usa URL completa com baseURL e tratamento de barras
+            const cleanUri = uri.startsWith('/') ? uri : `/${uri}`;
+            const fullUrl = `${this.#baseURL}${cleanUri}`;
+            
             const headers = {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             };
 
             if (this.#token) {
                 headers["Authorization"] = `Bearer ${this.#token}`;
             }
 
-            // Executa a requisição POST com headers e corpo JSON
-            const response = await fetch(uri, {
+            console.log("📤 Fazendo POST para:", fullUrl, jsonObject);
+            
+            const response = await fetch(fullUrl, {
                 method: "POST",
                 headers: headers,
-                body: JSON.stringify(jsonObject)
+                body: JSON.stringify(jsonObject),
+                mode: 'cors',
+                credentials: 'include'
             });
 
-            const jsonObj = await response.json();
-            console.log("POST:", uri, jsonObj);
+            // ✅ CORREÇÃO MELHORADA: Para CORS, verifica se a resposta foi bloqueada
+            if (response.status === 0 || response.type === 'opaque') {
+                throw new Error('CORS Policy blocked the request - Verifique a configuração do servidor Flask');
+            }
+
+            if (!response.ok) {
+                // Tenta obter mensagem de erro da resposta
+                let errorMessage = `HTTP Error: ${response.status} ${response.statusText}`;
+                try {
+                    const errorText = await response.text();
+                    if (errorText) {
+                        const errorJson = JSON.parse(errorText);
+                        errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+                    }
+                } catch (e) {
+                    // Ignora erro de parse
+                }
+                throw new Error(errorMessage);
+            }
+
+            const text = await response.text();
+            let jsonObj;
+            
+            try {
+                jsonObj = text ? JSON.parse(text) : {};
+            } catch (parseError) {
+                console.error("❌ Resposta não é JSON válido:", text.substring(0, 100));
+                return {
+                    success: false,
+                    error: {
+                        message: `Resposta não é JSON: ${response.status} ${response.statusText}`,
+                        code: response.status
+                    }
+                };
+            }
+
+            console.log("✅ POST bem-sucedido:", fullUrl, jsonObj);
             return jsonObj;
 
         } catch (error) {
-            console.error("Erro ao buscar dados:", error.message);
-            return [];  // Retorna array vazio em caso de erro
+            console.error("❌ Erro ao fazer POST:", error.message);
+            return {
+                success: false,
+                error: {
+                    message: error.message,
+                    code: 500
+                }
+            };
         }
     }
 
@@ -145,35 +279,81 @@ export default class ApiService {
      * @param {string} uri - URL base do recurso.
      * @param {string|number} id - ID do recurso a ser atualizado.
      * @param {Object} jsonObject - Dados atualizados a serem enviados no corpo da requisição.
-     * @returns {Promise<Object|null>} Retorna JSON da resposta ou null em caso de erro.
+     * @returns {Promise<Object>} Retorna JSON da resposta ou objeto de erro padronizado.
      */
     async put(uri, id, jsonObject) {
         try {
+            // ✅ CORREÇÃO CRÍTICA: Remove barra extra para evitar URLs com "//"
+            const cleanUri = uri.endsWith('/') ? uri.slice(0, -1) : uri;
+            const fullUrl = `${this.#baseURL}${cleanUri}/${id}`;
+            
             const headers = {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             };
 
             if (this.#token) {
                 headers["Authorization"] = `Bearer ${this.#token}`;
             }
 
-            // Monta URL final com ID
-            const fullUri = `${uri}/${id}`;
-
-            // Faz requisição PUT com corpo JSON
-            const response = await fetch(fullUri, {
+            console.log("📤 Fazendo PUT para:", fullUrl, jsonObject);
+            
+            const response = await fetch(fullUrl, {
                 method: "PUT",
                 headers: headers,
-                body: JSON.stringify(jsonObject)
+                body: JSON.stringify(jsonObject),
+                mode: 'cors',
+                credentials: 'include'
             });
 
-            const jsonObj = await response.json();
-            console.log("PUT:", fullUri, jsonObj);
+            // ✅ CORREÇÃO: Para CORS, verifica se a resposta foi bloqueada
+            if (response.status === 0 || response.type === 'opaque') {
+                throw new Error('CORS Policy blocked the request');
+            }
+
+            if (!response.ok) {
+                // Tenta obter mensagem de erro da resposta
+                let errorMessage = `HTTP Error: ${response.status} ${response.statusText}`;
+                try {
+                    const errorText = await response.text();
+                    if (errorText) {
+                        const errorJson = JSON.parse(errorText);
+                        errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+                    }
+                } catch (e) {
+                    // Ignora erro de parse
+                }
+                throw new Error(errorMessage);
+            }
+
+            const text = await response.text();
+            let jsonObj;
+            
+            try {
+                jsonObj = text ? JSON.parse(text) : {};
+            } catch (parseError) {
+                console.error("❌ Resposta não é JSON válido:", text.substring(0, 100));
+                return {
+                    success: false,
+                    error: {
+                        message: `Resposta não é JSON: ${response.status} ${response.statusText}`,
+                        code: response.status
+                    }
+                };
+            }
+
+            console.log("✅ PUT bem-sucedido:", fullUrl, jsonObj);
             return jsonObj;
 
         } catch (error) {
-            console.error("Erro ao enviar dados:", error.message);
-            return null;  // Retorna null em caso de erro
+            console.error("❌ Erro ao fazer PUT:", error.message);
+            return {
+                success: false,
+                error: {
+                    message: error.message,
+                    code: 500
+                }
+            };
         }
     }
 
@@ -181,41 +361,80 @@ export default class ApiService {
      * Método para deletar um recurso via DELETE usando ID.
      * @param {string} uri - URL base do recurso.
      * @param {string|number} id - ID do recurso a ser deletado.
-     * @returns {Promise<Object|null>} Retorna JSON da resposta ou null se não houver corpo ou erro.
+     * @returns {Promise<Object>} Retorna JSON da resposta ou objeto de erro padronizado.
      */
     async delete(uri, id) {
         try {
+            // ✅ CORREÇÃO: Remove barra extra na URL
+            const cleanUri = uri.endsWith('/') ? uri.slice(0, -1) : uri;
+            const fullUrl = `${this.#baseURL}${cleanUri}/${id}`;
+            
             const headers = {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             };
 
             if (this.#token) {
                 headers["Authorization"] = `Bearer ${this.#token}`;
             }
 
-            // Monta URL final com ID
-            const fullUri = `${uri}/${id}`;
-
-            // Executa requisição DELETE
-            console.log("DELETE: " + fullUri);
-            const response = await fetch(fullUri, {
+            console.log("🗑️  Fazendo DELETE para:", fullUrl);
+            
+            const response = await fetch(fullUrl, {
                 method: "DELETE",
-                headers: headers
+                headers: headers,
+                mode: 'cors',
+                credentials: 'include'
             });
 
-            // Verifica sucesso da resposta
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status}`);
+            // ✅ CORREÇÃO: Para CORS, verifica se a resposta foi bloqueada
+            if (response.status === 0 || response.type === 'opaque') {
+                throw new Error('CORS Policy blocked the request');
             }
 
-            // Tenta converter resposta para JSON, mas se falhar retorna null
-            const jsonObj = await response.json().catch(() => null);
-            console.log("DELETE:", fullUri, jsonObj);
+            if (!response.ok) {
+                // Tenta obter mensagem de erro da resposta
+                let errorMessage = `HTTP Error: ${response.status} ${response.statusText}`;
+                try {
+                    const errorText = await response.text();
+                    if (errorText) {
+                        const errorJson = JSON.parse(errorText);
+                        errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+                    }
+                } catch (e) {
+                    // Ignora erro de parse
+                }
+                throw new Error(errorMessage);
+            }
+
+            const text = await response.text();
+            let jsonObj;
+            
+            try {
+                jsonObj = text ? JSON.parse(text) : {};
+            } catch (parseError) {
+                console.error("❌ Resposta não é JSON válido:", text.substring(0, 100));
+                return {
+                    success: false,
+                    error: {
+                        message: `Resposta não é JSON: ${response.status} ${response.statusText}`,
+                        code: response.status
+                    }
+                };
+            }
+
+            console.log("✅ DELETE bem-sucedido:", fullUrl, jsonObj);
             return jsonObj;
 
         } catch (error) {
-            console.error("Erro ao deletar dados:", error.message);
-            return null;  // Retorna null em caso de erro
+            console.error("❌ Erro ao deletar dados:", error.message);
+            return {
+                success: false,
+                error: {
+                    message: error.message,
+                    code: 500
+                }
+            };
         }
     }
 
@@ -233,5 +452,21 @@ export default class ApiService {
      */
     set token(value) {
         this.#token = value;
+    }
+
+    /**
+     * Getter para a URL base.
+     * @returns {string} Retorna a URL base atual.
+     */
+    get baseURL() {
+        return this.#baseURL;
+    }
+
+    /**
+     * Setter para atualizar a URL base.
+     * @param {string} value - Nova URL base.
+     */
+    set baseURL(value) {
+        this.#baseURL = value;
     }
 }

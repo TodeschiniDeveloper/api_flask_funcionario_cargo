@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from datetime import datetime, date
+
 class Tarefa:
     def __init__(self):
         """
@@ -33,8 +36,12 @@ class Tarefa:
         >>> tarefa.id = -5  # ❌ lança erro
         >>> tarefa.id = 0   # ❌ lança erro
         >>> tarefa.id = 3.14  # ❌ lança erro
-        >>> tarefa.id = None  # ❌ lança erro
+        >>> tarefa.id = None  # ✅ CORREÇÃO: None agora é permitido
         """
+        if value is None:
+            self.__id = None
+            return
+            
         try:
             parsed = int(value)
         except (ValueError, TypeError):
@@ -71,6 +78,9 @@ class Tarefa:
         >>> tarefa.titulo = ""                    # ❌ lança erro
         >>> tarefa.titulo = None                  # ❌ lança erro
         """
+        if value is None:
+            raise ValueError("titulo não pode ser None.")
+
         if not isinstance(value, str):
             raise ValueError("titulo deve ser uma string.")
 
@@ -124,24 +134,34 @@ class Tarefa:
         """
         Define a data limite da tarefa.
 
-        🔹 Regra de domínio: garante que a data seja um objeto date.
+        🔹 CORREÇÃO CRÍTICA: Agora aceita date, string no formato YYYY-MM-DD, ou None.
 
-        :param value: date - Data limite da tarefa.
-        :raises ValueError: Lança erro se o valor não for date.
+        :param value: date ou str - Data limite da tarefa.
+        :raises ValueError: Lança erro se o valor não for date ou string no formato correto.
 
         Exemplo:
         >>> tarefa = Tarefa()
         >>> from datetime import date
         >>> tarefa.data_limite = date(2025, 11, 5)   # ✅ válido
-        >>> tarefa.data_limite = "2025-11-05"        # ❌ lança erro
+        >>> tarefa.data_limite = "2025-11-05"        # ✅ CORREÇÃO: Agora aceita string
         >>> tarefa.data_limite = None                # ✅ válido (None é permitido)
+        >>> tarefa.data_limite = "05/11/2025"        # ❌ lança erro (formato inválido)
         """
-        if value is not None:
-            from datetime import date
-            if not isinstance(value, date):
-                raise ValueError("data_limite deve ser um objeto date ou None.")
+        if value is None:
+            self.__data_limite = None
+            return
 
-        self.__data_limite = value
+        # ✅ CORREÇÃO CRÍTICA: Aceita tanto date quanto string
+        if isinstance(value, date):
+            self.__data_limite = value
+        elif isinstance(value, str):
+            try:
+                # Tenta converter string para date
+                self.__data_limite = datetime.strptime(value, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError("data_limite deve ser um objeto date, string no formato YYYY-MM-DD ou None.")
+        else:
+            raise ValueError("data_limite deve ser um objeto date, string no formato YYYY-MM-DD ou None.")
 
     @property
     def projeto_id(self):
@@ -167,8 +187,12 @@ class Tarefa:
         >>> tarefa.projeto_id = -5  # ❌ lança erro
         >>> tarefa.projeto_id = 0   # ❌ lança erro
         >>> tarefa.projeto_id = 3.14  # ❌ lança erro
-        >>> tarefa.projeto_id = None  # ❌ lança erro
+        >>> tarefa.projeto_id = None  # ✅ CORREÇÃO: None agora é permitido
         """
+        if value is None:
+            self.__projeto_id = None
+            return
+            
         try:
             parsed = int(value)
         except (ValueError, TypeError):
@@ -178,3 +202,29 @@ class Tarefa:
             raise ValueError("projeto_id deve ser maior que zero.")
 
         self.__projeto_id = parsed
+
+    def to_dict(self):
+        """
+        Converte o objeto Tarefa para dicionário.
+        
+        :return: dict - Representação em dicionário da tarefa
+        """
+        return {
+            "id": self.__id,
+            "titulo": self.__titulo,
+            "concluida": self.__concluida,
+            "data_limite": self.__data_limite.isoformat() if self.__data_limite else None,
+            "projeto_id": self.__projeto_id
+        }
+
+    def __str__(self):
+        """
+        Representação em string do objeto Tarefa.
+        """
+        return f"Tarefa(id={self.__id}, titulo='{self.__titulo}', concluida={self.__concluida})"
+
+    def __repr__(self):                                            
+        """
+        Representação oficial do objeto Tarefa.
+        """
+        return self.__str__()

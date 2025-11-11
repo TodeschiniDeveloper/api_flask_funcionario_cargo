@@ -13,7 +13,7 @@ from api.http.meu_token_jwt import MeuTokenJWT
 from api.middleware.jwt_middleware import JwtMiddleware
 from api.middleware.usuario_middleware import UsuarioMiddleware
 from api.middleware.projeto_middleware import ProjetoMiddleware
-from api.middleware.tarefa_middleware import TarefaMiddleware  # CORRIGIDO: era TarefaMiddleware
+from api.middleware.tarefa_middleware import TarefaMiddleware
 
 from api.dao.usuario_dao import UsuarioDAO
 from api.dao.projeto_dao import ProjetoDAO
@@ -50,32 +50,56 @@ class Server:
         Inicializa todas as dependências do servidor.
         """
         print("🔄 Inicializando servidor...")
-        
+
         # 1. Criar aplicação Flask
         self.app = Flask(__name__)
         self.app.config['SECRET_KEY'] = 'chave_secreta_projeto_mvcs'
-        
-        # 2. Configurar CORS
-        CORS(self.app, resources={
-            r"/api/*": {
-                "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
-                "methods": ["GET", "POST", "PUT", "DELETE"],
-                "allow_headers": ["Content-Type", "Authorization"]
-            }
-        })
-        
-        # 3. Inicializar banco de dados
+
+        # 2. ✅ CORREÇÃO CORS - CONFIGURAÇÃO COMPLETA E FUNCIONAL
+        CORS(self.app, 
+             origins=["http://localhost", "http://127.0.0.1", "http://localhost:3000"],
+             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             allow_headers=["Content-Type", "Authorization"],
+             supports_credentials=True)
+
+        # 3. ✅ ADICIONAR headers CORS manualmente para garantir
+        @self.app.after_request
+        def after_request(response):
+            response.headers.add('Access-Control-Allow-Origin', 'http://localhost')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            return response
+
+        # 4. ✅ Rotas OPTIONS para preflight requests
+        @self.app.route('/api/usuario/login', methods=['OPTIONS'])
+        def options_login():
+            return '', 200
+
+        @self.app.route('/api/usuario/', methods=['OPTIONS'])
+        def options_usuarios():
+            return '', 200
+
+        @self.app.route('/api/projeto/', methods=['OPTIONS']) 
+        def options_projetos():
+            return '', 200
+
+        @self.app.route('/api/tarefa/', methods=['OPTIONS'])
+        def options_tarefas():
+            return '', 200
+
+        # 5. Inicializar banco de dados
         self._init_database()
-        
-        # 4. Configurar dependências
+
+        # 6. Configurar dependências
         self._configure_dependencies()
-        
-        # 5. Registrar rotas
+
+        # 7. Registrar rotas
         self._register_routes()
-        
-        # 6. Configurar error handlers
+
+        # 8. Configurar error handlers
         self._configure_error_handlers()
-        
+
         print("✅ Servidor inicializado com sucesso!")
 
     def _init_database(self):
@@ -84,7 +108,6 @@ class Server:
         try:
             self.database = create_database_instance()
             
-            # Testar conexão com tratamento de erro
             if self.database.test_connection():
                 print("✅ Conexão com banco de dados estabelecida")
             else:
@@ -120,7 +143,7 @@ class Server:
             # Middlewares
             usuario_middleware = UsuarioMiddleware()
             projeto_middleware = ProjetoMiddleware()
-            tarefa_middleware = TarefaMiddleware()  # CORRIGIDO
+            tarefa_middleware = TarefaMiddleware()
             
             # Controls
             usuario_control = UsuarioControl(usuario_service)
@@ -151,21 +174,20 @@ class Server:
         print("🛣️  Registrando rotas...")
         
         try:
-            # Registrar blueprints com prefixo /api
             self.app.register_blueprint(
                 self.dependencies['usuario_roteador'].create_routes(),
-                url_prefix='/api/usuarios'
+                url_prefix='/api/usuario'
             )
             self.app.register_blueprint(
                 self.dependencies['projeto_roteador'].create_routes(),
-                url_prefix='/api/projetos'
+                url_prefix='/api/projeto'
             )
             self.app.register_blueprint(
                 self.dependencies['tarefa_roteador'].create_routes(),
-                url_prefix='/api/tarefas'
+                url_prefix='/api/tarefa'
             )
             
-            # Rota de health check com timestamp dinâmico
+            # Rota de health check
             @self.app.route('/api/health')
             def health_check():
                 return {
@@ -181,9 +203,9 @@ class Server:
                     "message": "Bem-vindo ao Sistema de Gerenciamento de Projetos",
                     "version": "1.0.0",
                     "endpoints": {
-                        "usuarios": "/api/usuarios",
-                        "projetos": "/api/projetos",
-                        "tarefas": "/api/tarefas",
+                        "usuario": "/api/usuario",
+                        "projeto": "/api/projeto",
+                        "tarefa": "/api/tarefa",
                         "health": "/api/health"
                     }
                 }
@@ -226,9 +248,9 @@ class Server:
         
         print(f"🌐 Servidor iniciado em http://{self.host}:{self.porta}")
         print("📋 Endpoints disponíveis:")
-        print("   👥 /api/usuarios/*")
-        print("   📁 /api/projetos/*") 
-        print("   ✅ /api/tarefas/*")
+        print("   👥 /api/usuario/*")
+        print("   📁 /api/projeto/*")
+        print("   ✅ /api/tarefa/*")
         print("   ❤️  /api/health")
         print("\n⏹️  Pressione CTRL+C para parar o servidor")
         

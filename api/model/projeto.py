@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from datetime import datetime, date
+
 class Projeto:
     def __init__(self):
         """
@@ -7,6 +10,7 @@ class Projeto:
         self.__nome = None
         self.__descricao = None
         self.__data_inicio = None
+        self.__data_fim = None  # ✅ CORREÇÃO: Adicionado data_fim que estava faltando
         self.__status = None
         self.__usuario_id = None
 
@@ -36,6 +40,10 @@ class Projeto:
         >>> projeto.id = 3.14  # ❌ lança erro
         >>> projeto.id = None  # ❌ lança erro
         """
+        if value is None:
+            self.__id = None
+            return
+            
         try:
             parsed = int(value)
         except (ValueError, TypeError):
@@ -72,6 +80,9 @@ class Projeto:
         >>> projeto.nome = ""                    # ❌ lança erro
         >>> projeto.nome = None                  # ❌ lança erro
         """
+        if value is None:
+            raise ValueError("nome não pode ser None.")
+
         if not isinstance(value, str):
             raise ValueError("nome deve ser uma string.")
 
@@ -123,24 +134,76 @@ class Projeto:
         """
         Define a data de início do projeto.
 
-        🔹 Regra de domínio: garante que a data seja um objeto date.
+        🔹 Regra de domínio: garante que a data seja um objeto date ou string no formato YYYY-MM-DD.
 
-        :param value: date - Data de início do projeto.
-        :raises ValueError: Lança erro se o valor não for date.
+        :param value: date ou str - Data de início do projeto.
+        :raises ValueError: Lança erro se o valor não for date ou string no formato correto.
 
         Exemplo:
         >>> projeto = Projeto()
         >>> from datetime import date
         >>> projeto.data_inicio = date(2025, 11, 1)   # ✅ válido
-        >>> projeto.data_inicio = "2025-11-01"        # ❌ lança erro
+        >>> projeto.data_inicio = "2025-11-01"        # ✅ válido (agora aceita string)
         >>> projeto.data_inicio = None                # ✅ válido (None é permitido)
+        >>> projeto.data_inicio = "01/11/2025"        # ❌ lança erro (formato inválido)
         """
-        if value is not None:
-            from datetime import date
-            if not isinstance(value, date):
-                raise ValueError("data_inicio deve ser um objeto date ou None.")
+        if value is None:
+            self.__data_inicio = None
+            return
 
-        self.__data_inicio = value
+        # ✅ CORREÇÃO: Aceita tanto date quanto string
+        if isinstance(value, date):
+            self.__data_inicio = value
+        elif isinstance(value, str):
+            try:
+                # Tenta converter string para date
+                self.__data_inicio = datetime.strptime(value, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError("data_inicio deve ser um objeto date, string no formato YYYY-MM-DD ou None.")
+        else:
+            raise ValueError("data_inicio deve ser um objeto date, string no formato YYYY-MM-DD ou None.")
+
+    @property
+    def data_fim(self):
+        """
+        Getter para data_fim
+        :return: date - Data de término do projeto
+        """
+        return self.__data_fim
+
+    @data_fim.setter
+    def data_fim(self, value):
+        """
+        Define a data de término do projeto.
+
+        🔹 Regra de domínio: garante que a data seja um objeto date ou string no formato YYYY-MM-DD.
+
+        :param value: date ou str - Data de término do projeto.
+        :raises ValueError: Lança erro se o valor não for date ou string no formato correto.
+
+        Exemplo:
+        >>> projeto = Projeto()
+        >>> from datetime import date
+        >>> projeto.data_fim = date(2025, 12, 1)   # ✅ válido
+        >>> projeto.data_fim = "2025-12-01"        # ✅ válido (agora aceita string)
+        >>> projeto.data_fim = None                # ✅ válido (None é permitido)
+        >>> projeto.data_fim = "01/12/2025"        # ❌ lança erro (formato inválido)
+        """
+        if value is None:
+            self.__data_fim = None
+            return
+
+        # ✅ CORREÇÃO: Aceita tanto date quanto string
+        if isinstance(value, date):
+            self.__data_fim = value
+        elif isinstance(value, str):
+            try:
+                # Tenta converter string para date
+                self.__data_fim = datetime.strptime(value, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError("data_fim deve ser um objeto date, string no formato YYYY-MM-DD ou None.")
+        else:
+            raise ValueError("data_fim deve ser um objeto date, string no formato YYYY-MM-DD ou None.")
 
     @property
     def status(self):
@@ -162,17 +225,20 @@ class Projeto:
 
         Exemplo:
         >>> projeto = Projeto()
-        >>> projeto.status = "Pendente"       # ✅ válido
-        >>> projeto.status = "Em Andamento"   # ✅ válido
-        >>> projeto.status = "Concluído"      # ✅ válido
-        >>> projeto.status = "Cancelado"      # ✅ válido
+        >>> projeto.status = "pendente"       # ✅ válido
+        >>> projeto.status = "andamento"      # ✅ válido  
+        >>> projeto.status = "concluido"      # ✅ válido
         >>> projeto.status = "Inválido"       # ❌ lança erro
         >>> projeto.status = None             # ❌ lança erro
         """
+        if value is None:
+            raise ValueError("status não pode ser None.")
+
         if not isinstance(value, str):
             raise ValueError("status deve ser uma string.")
 
-        status_validos = ["Pendente", "Em Andamento", "Concluído", "Cancelado"]
+        # ✅ CORREÇÃO: Status compatíveis com o frontend
+        status_validos = ["pendente", "andamento", "concluido"]
         if value not in status_validos:
             raise ValueError(f"status deve ser um dos valores: {', '.join(status_validos)}")
 
@@ -202,8 +268,12 @@ class Projeto:
         >>> projeto.usuario_id = -5  # ❌ lança erro
         >>> projeto.usuario_id = 0   # ❌ lança erro
         >>> projeto.usuario_id = 3.14  # ❌ lança erro
-        >>> projeto.usuario_id = None  # ❌ lança erro
+        >>> projeto.usuario_id = None  # ✅ válido (None é permitido)
         """
+        if value is None:
+            self.__usuario_id = None
+            return
+            
         try:
             parsed = int(value)
         except (ValueError, TypeError):
@@ -214,12 +284,30 @@ class Projeto:
 
         self.__usuario_id = parsed
 
+    def to_dict(self):
+        """
+        Converte o objeto Projeto para dicionário.
+        
+        :return: dict - Representação em dicionário do projeto
+        """
+        return {
+            "id": self.__id,
+            "nome": self.__nome,
+            "descricao": self.__descricao,
+            "data_inicio": self.__data_inicio.isoformat() if self.__data_inicio else None,
+            "data_fim": self.__data_fim.isoformat() if self.__data_fim else None,
+            "status": self.__status,
+            "usuario_id": self.__usuario_id
+        }
 
-# -*- coding: utf-8 -*-
-"""
-Representa a entidade Tarefa do sistema.
+    def __str__(self):
+        """
+        Representação em string do objeto Projeto.
+        """
+        return f"Projeto(id={self.__id}, nome='{self.__nome}', status='{self.__status}')"
 
-Objetivo:
-- Encapsular os dados de uma tarefa.
-- Garantir integridade dos atributos via getters e setters.
-"""
+    def __repr__(self):
+        """
+        Representação oficial do objeto Projeto.
+        """
+        return self.__str__()

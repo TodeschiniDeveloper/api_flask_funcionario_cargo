@@ -1,160 +1,188 @@
-# -*- coding: utf-8 -*-
-from api.dao.usuario_dao import UsuarioDAO
+# api/service/usuario_service.py
 from api.model.usuario import Usuario
 from api.utils.error_response import ErrorResponse
-from api.http.meu_token_jwt import MeuTokenJWT
+import bcrypt
+from datetime import datetime
 
-
-"""
-Classe responsável pela camada de serviço para a entidade Usuario.
-
-Observações sobre injeção de dependência:
-- O UsuarioService recebe instâncias de UsuarioDAO via construtor.
-- Isso desacopla o serviço das implementações concretas dos DAOs.
-- Facilita testes unitários e uso de mocks.
-"""
 class UsuarioService:
-    def __init__(self, usuario_dao_dependency: UsuarioDAO):
+    def __init__(self, usuario_dao_dependency):
         """
-        Construtor da classe UsuarioService
-
-        :param usuario_dao_dependency: UsuarioDAO
+        Service para regras de negócio do Usuario
         """
         print("⬆️  UsuarioService.__init__()")
-        self.__usuarioDAO = usuario_dao_dependency
+        self.__usuario_dao = usuario_dao_dependency
 
-    def createUsuario(self, jsonUsuario: dict) -> int:
+    def createUsuario(self, usuario_data):
         """
-        Cria um novo usuário.
-
-        :param jsonUsuario: dict contendo dados do usuário
-        :return: int ID do usuário criado
-        :raises ErrorResponse: se email já existir
+        Cria um novo usuário com validações
         """
-        print("🟣 UsuarioService.createUsuario()")
+        try:
+            # Verifica se email já existe
+            if self.__usuario_dao.email_exists(usuario_data.get('email')):
+                raise ErrorResponse("Email já cadastrado", 400)
 
-        # ✅ CORREÇÃO: Extrai do objeto "usuario" se existir
-        usuario_data = jsonUsuario.get("usuario", jsonUsuario)
-        
-        objUsuario = Usuario()
-        objUsuario.nome = usuario_data["nome"]
-        objUsuario.email = usuario_data["email"]
-        objUsuario.senha_hash = usuario_data["senha_hash"]
+            # Cria objeto Usuario
+            usuario = Usuario()
+            usuario.nome = usuario_data.get('nome')
+            usuario.email = usuario_data.get('email')
+            
+            # Hash da senha
+            senha = usuario_data.get('senha', '')
+            if not senha:
+                raise ErrorResponse("Senha é obrigatória", 400)
+                
+            senha_hash = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            usuario.senha_hash = senha_hash
+            usuario.data_criacao = datetime.now()
 
-        # regra de negócio: validar email duplicado
-        emailExiste = self.__usuarioDAO.findByField("email", objUsuario.email)
-        if emailExiste and len(emailExiste) > 0:
-            raise ErrorResponse(
-                400,
-                "Usuário já existe",
-                {"message": f"O email {objUsuario.email} já está cadastrado"}
-            )
+            # Salva no banco
+            new_id = self.__usuario_dao.create(usuario)
+            return new_id
 
-        user_id = self.__usuarioDAO.create(objUsuario)
-        print(f"✅ Usuário criado com ID: {user_id}")
-        return user_id
+        except ValueError as e:
+            raise ErrorResponse(str(e), 400)
+        except Exception as e:
+            print(f"❌ Erro em createUsuario: {e}")
+            raise ErrorResponse("Erro ao criar usuário", 500)
 
-    def loginUsuario(self, jsonUsuario: dict) -> dict:
+    def loginUsuario(self, login_data):
         """
-        Realiza login de um usuário e retorna token JWT.
-
-        :param jsonUsuario: dict {"email", "senha_hash"} dentro de "usuario"
-        :return: dict {user, token}
-        :raises ErrorResponse: se login falhar
+        Autentica usuário
         """
-        print("🟣 UsuarioService.loginUsuario()")
-        print(f"📨 Dados recebidos para login: {jsonUsuario}")
+        try:
+            email = login_data.get('email')
+            senha = login_data.get('senha')
 
-        # ✅ CORREÇÃO: Extrai do objeto "usuario" com fallback
-        usuario_data = jsonUsuario.get("usuario", jsonUsuario)
-        
-        objUsuario = Usuario()
-        objUsuario.email = usuario_data["email"]
-        objUsuario.senha_hash = usuario_data["senha_hash"]
-        
-        print(f"🔐 Tentando login para: {objUsuario.email}")
-      
-        encontrado = self.__usuarioDAO.login(objUsuario)
+            if not email or not senha:
+                raise ErrorResponse("Email e senha são obrigatórios", 400)
 
-        if not encontrado:
-            print("❌ Login falhou - usuário não encontrado ou senha incorreta")
-            raise ErrorResponse(
-                401,
-                "Usuário ou senha inválidos",
-                {"message": "Não foi possível realizar autenticação"}
-            )
+            # Busca usuário
+            usuario_db = self.__usuario_dao.find_by_email(email)
+            if not usuario_db:
+                raise ErrorResponse("Email ou senha incorretos", 401)
 
-        jwt = MeuTokenJWT()
-        user = {
-            "usuario": {
-                "email": encontrado.email,
-                "nome": encontrado.nome,  # ✅ CORREÇÃO: era "name", mudado para "nome"
-                "id": encontrado.id
+            # Verifica senha
+            if not bcrypt.checkpw(senha.encode('utf-8'), usuario_db['senha_hash'].encode('utf-8')):
+                raise ErrorResponse("Email ou senha incorretos", 401)
+
+            # Retorna dados do usuário (sem senha)
+            return {
+                'usuario': {
+                    'id': usuario_db['id'],
+                    'nome': usuario_db['nome'],
+                    'email': usuario_db['email']
+                }
             }
-        }
-        token = jwt.gerarToken(user["usuario"])
-        
-        print(f"✅ Login bem-sucedido para: {encontrado.email}")
-        print(f"🔑 Token gerado: {token[:50]}...")
-        
-        return {
-            "user": user, 
-            "token": token
-        }
 
-    def findAll(self) -> list[dict]:
+        except ErrorResponse:
+            raise
+        except Exception as e:
+            print(f"❌ Erro em loginUsuario: {e}")
+            raise ErrorResponse("Erro ao fazer login", 500)
+
+    def findById(self, id):
         """
-        Retorna todos os usuários.
+        Busca usuário por ID
         """
-        print("🟣 UsuarioService.findAll()")
-        return self.__usuarioDAO.findAll()
+        try:
+            usuario_db = self.__usuario_dao.find_by_id(id)
+            if not usuario_db:
+                raise ErrorResponse("Usuário não encontrado", 404)
 
-    def findById(self, id: int) -> dict:
+            return {
+                'usuario': {
+                    'id': usuario_db['id'],
+                    'nome': usuario_db['nome'],
+                    'email': usuario_db['email'],
+                    'data_criacao': usuario_db['data_criacao']
+                }
+            }
+
+        except ErrorResponse:
+            raise
+        except Exception as e:
+            print(f"❌ Erro em findById: {e}")
+            raise ErrorResponse("Erro ao buscar usuário", 500)
+
+    def findAll(self):
         """
-        Busca usuário por ID.
-
-        :param id: int
-        :return: dict
-        :raises ErrorResponse: se usuário não for encontrado
+        Busca todos os usuários
         """
-        usuario = self.__usuarioDAO.findById(id)
-        if not usuario:
-            raise ErrorResponse(
-                404,
-                "Usuário não encontrado",
-                {"message": f"Não existe usuário com id {id}"}
-            )
-        return usuario
+        try:
+            usuarios_db = self.__usuario_dao.find_all()
+            
+            usuarios = []
+            for usuario_db in usuarios_db:
+                usuarios.append({
+                    'id': usuario_db['id'],
+                    'nome': usuario_db['nome'],
+                    'email': usuario_db['email'],
+                    'data_criacao': usuario_db['data_criacao']
+                })
 
-    def updateUsuario(self, id: int, requestBody: dict) -> bool:
+            return usuarios
+
+        except Exception as e:
+            print(f"❌ Erro em findAll: {e}")
+            raise ErrorResponse("Erro ao buscar usuários", 500)
+
+    def updateUsuario(self, id, usuario_data):
         """
-        Atualiza dados de um usuário.
-
-        :param id: int
-        :param requestBody: dict {"usuario": {...}}
-        :return: bool
+        Atualiza usuário
         """
-        print("🟣 UsuarioService.updateUsuario()")
+        try:
+            usuario_db = self.__usuario_dao.find_by_id(id)
+            if not usuario_db:
+                raise ErrorResponse("Usuário não encontrado", 404)
 
-        jsonUsuario = requestBody["usuario"]
+            update_data = usuario_data.get('usuario', {})
+            
+            # Atualiza dados
+            if 'nome' in update_data:
+                usuario_db['nome'] = update_data['nome']
+            if 'email' in update_data:
+                usuario_db['email'] = update_data['email']
+            if 'senha' in update_data:
+                senha_hash = bcrypt.hashpw(update_data['senha'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                usuario_db['senha_hash'] = senha_hash
 
-        objUsuario = Usuario()
-        objUsuario.id = id
-        objUsuario.nome = jsonUsuario["nome"]
-        objUsuario.email = jsonUsuario["email"]
-        
-        # A senha é opcional na atualização
-        if "senha_hash" in jsonUsuario and jsonUsuario["senha_hash"]:
-            objUsuario.senha_hash = jsonUsuario["senha_hash"]
+            self.__usuario_dao.update(id, usuario_db)
+            return True
 
-        return self.__usuarioDAO.update(objUsuario)
+        except ErrorResponse:
+            raise
+        except Exception as e:
+            print(f"❌ Erro em updateUsuario: {e}")
+            raise ErrorResponse("Erro ao atualizar usuário", 500)
 
-    def deleteUsuario(self, id: int) -> bool:
+    def deleteUsuario(self, id):
         """
-        Remove usuário por ID.
-
-        :param id: int
-        :return: bool
+        Remove usuário
         """
-        print("🟣 UsuarioService.deleteUsuario()")
-        return self.__usuarioDAO.delete(id)
+        try:
+            usuario_db = self.__usuario_dao.find_by_id(id)
+            if not usuario_db:
+                raise ErrorResponse("Usuário não encontrado", 404)
+
+            self.__usuario_dao.delete(id)
+            return True
+
+        except ErrorResponse:
+            raise
+        except Exception as e:
+            print(f"❌ Erro em deleteUsuario: {e}")
+            raise ErrorResponse("Erro ao excluir usuário", 500)
+
+    def verificarEmail(self, email):
+        """
+        Verifica se email existe
+        """
+        try:
+            existe = self.__usuario_dao.email_exists(email)
+            return {
+                'email_existe': existe
+            }
+
+        except Exception as e:
+            print(f"❌ Erro em verificarEmail: {e}")
+            raise ErrorResponse("Erro ao verificar email", 500)

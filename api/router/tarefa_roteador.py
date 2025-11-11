@@ -27,7 +27,7 @@ class TarefaRoteador:
         self.__tarefa_middleware = tarefa_middleware
         self.__tarefa_control = tarefa_control
 
-        # Blueprint é a coleção de rotas da entidade Tarefa
+        # ✅ CORREÇÃO: Blueprint com nome no singular
         self.__blueprint = Blueprint('tarefa', __name__)
 
     def create_routes(self):
@@ -94,7 +94,7 @@ class TarefaRoteador:
             return self.__tarefa_control.update(id)
 
         # DELETE /<id> -> remove uma tarefa
-        @self.__blueprint.route('/<id>', methods=['DELETE'])
+        @self.__blueprint.route('/<int:id>', methods=['DELETE'])
         @self.__jwt_middleware.validate_token
         @self.__tarefa_middleware.validate_id_param
         def destroy(id):
